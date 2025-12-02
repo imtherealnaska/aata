@@ -9,4 +9,6 @@ pub enum GameError {
     DestinationOccupiedBySelf { x: u8, y: u8 }, // cant capture your own piece
     ViolatesRule(String),
     EmptySource { x: u8, y: u8 },
+    GameNotStarted,
+    InvalidPlayer,
 }
