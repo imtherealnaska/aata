@@ -32,6 +32,7 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+    console_subscriber::init();
     // mpsc : Many connections one game loop
     let (tx, rx) = mpsc::channel(100);
     // broadcasr: one game loop -> many conn

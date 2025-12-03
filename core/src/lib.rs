@@ -94,10 +94,10 @@ impl GameState {
             });
         }
 
-        if let Some(dest_piece) = &self.board[to.1 as usize][to.0 as usize] {
-            if dest_piece.owner == self.turn {
-                return Err(GameError::DestinationOccupiedBySelf { x: to.0, y: to.1 });
-            }
+        if let Some(dest_piece) = &self.board[to.1 as usize][to.0 as usize]
+            && dest_piece.owner == self.turn
+        {
+            return Err(GameError::DestinationOccupiedBySelf { x: to.0, y: to.1 });
         }
 
         //capture
