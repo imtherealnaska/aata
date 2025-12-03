@@ -103,9 +103,10 @@ impl GameLoop {
             .players
             .iter()
             .find(|(_, id)| id.0 == player_id)
+            .map(|(_, id)| id)
             .ok_or(GameError::InvalidPlayer)?;
 
-        game.apply_move(from, to)?;
+        game.apply_move(pid, from, to)?;
         // sendin the board
         self.broadcast_state();
         let event = format!("Player {:?} moved from {:?} to {:?}", pid, from, to);

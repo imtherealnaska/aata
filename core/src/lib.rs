@@ -53,15 +53,28 @@ impl GameState {
         }
     }
 
-    pub fn apply_move(&mut self, from: (u8, u8), to: (u8, u8)) -> Result<(), GameError> {
+    pub fn apply_move(
+        &mut self,
+        player_id: &PlayerId,
+        from: (u8, u8),
+        to: (u8, u8),
+    ) -> Result<(), GameError> {
         if from.0 > 7 || from.1 > 7 {
             return Err(GameError::OutOfBounds {
+                // should probably have this as a Point(u8,u8)
                 x: from.0,
                 y: from.1,
             });
         }
         if to.0 > 7 || to.1 > 7 {
             return Err(GameError::OutOfBounds { x: to.0, y: to.1 });
+        }
+
+        // Check if it's the player's turn
+        if player_id != &self.turn {
+            return Err(GameError::NotYourTurn {
+                current_player: self.turn.0.clone(),
+            });
         }
 
         // what if , there is no piece at ( x , y )
