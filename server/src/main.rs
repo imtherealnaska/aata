@@ -15,10 +15,12 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 mod game_loop;
 use game_loop::{Command, GameLoop};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", content = "payload")]
 pub enum ClientMessage {
+    #[serde(rename = "join")]
     Join { name: String },
+    #[serde(rename = "move")]
     Move { from: (u8, u8), to: (u8, u8) },
 }
 
@@ -79,28 +81,71 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     let tx = state.tx.clone();
     let mut recv_tasl = tokio::spawn(async move {
+        // Store player_id for this connection
+        let mut player_id: Option<String> = None;
+
         while let Some(Ok(msg)) = receiver.next().await {
             if let Message::Text(text) = msg {
-                if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
-                    match client_msg {
+                match serde_json::from_str::<ClientMessage>(&text) {
+                    Ok(client_msg) => match client_msg {
                         ClientMessage::Join { name } => {
                             let (resp_tx, resp_rx) = oneshot::channel();
                             let cmd = Command::Join {
-                                player_name: name,
+                                player_name: name.clone(),
                                 response: resp_tx,
                             };
 
                             if tx.send(cmd).await.is_err() {
+                                println!("Failed to send command to game loop");
                                 break;
                             }
 
-                            if let Ok(Ok(player_id)) = resp_rx.await {
-                                println!("Player joined with ID : {:?}", player_id);
+                            match resp_rx.await {
+                                Ok(Ok(pid)) => {
+                                    player_id = Some(pid.0.clone());
+                                }
+                                Ok(Err(e)) => {
+                                    println!("Join error: {:?}", e);
+                                }
+                                Err(e) => {
+                                    println!("Response channel error: {:?}", e);
+                                }
                             }
                         }
                         ClientMessage::Move { from, to } => {
-                            // TODO: Need player_id here ,did nt store it
+                            println!("Processing Move request: {:?} -> {:?}", from, to);
+                            if let Some(pid) = &player_id {
+                                let (resp_tx, resp_rx) = oneshot::channel();
+                                let cmd = Command::MakeMove {
+                                    player_id: pid.clone(),
+                                    from,
+                                    to,
+                                    response: resp_tx,
+                                };
+
+                                if tx.send(cmd).await.is_err() {
+                                    println!("Failed to send move command to game loop");
+                                    break;
+                                }
+
+                                match resp_rx.await {
+                                    Ok(Ok(())) => {
+                                        println!("Move successful: {:?} -> {:?}", from, to);
+                                    }
+                                    Ok(Err(e)) => {
+                                        println!("Move error: {:?}", e);
+                                    }
+                                    Err(e) => {
+                                        println!("Response channel error: {:?}", e);
+                                    }
+                                }
+                            } else {
+                                println!("Move request without joining first");
+                            }
                         }
+                    },
+                    Err(e) => {
+                        println!("Failed to parse message as ClientMessage: {}", e);
                     }
                 }
             }

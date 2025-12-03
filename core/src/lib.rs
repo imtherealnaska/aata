@@ -2,18 +2,20 @@ pub mod errors;
 
 use std::array;
 
+use serde::Serialize;
+
 use crate::errors::GameError;
 
 /*
 idea is to use type system a bit more , so (id , type) should not be jumbled
 */
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PlayerId(pub String);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PieceType(pub String);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub owner: PlayerId,
@@ -21,8 +23,10 @@ pub struct Piece {
 
 pub type Board = [[Option<Piece>; 8]; 8];
 
+#[derive(Serialize)]
 pub struct GameState {
     pub board: Board,
+    #[serde(rename = "current_turn")]
     pub turn: PlayerId,
     pub players: (PlayerId, PlayerId),
 }

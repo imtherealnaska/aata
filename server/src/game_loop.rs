@@ -74,7 +74,7 @@ impl GameLoop {
                     response,
                 } => {
                     let result = self.handle_move(&player_id, from, to).await;
-                    response.send(result);
+                    let _ = response.send(result);
                 }
                 Command::GetState { response } => {
                     let snapshot = self.get_snapshot();
@@ -85,7 +85,7 @@ impl GameLoop {
                     response,
                 } => {
                     let result = self.handle_join(player_name).await;
-                    response.send(result);
+                    let _ = response.send(result);
                 }
             }
         }
@@ -106,10 +106,11 @@ impl GameLoop {
             .ok_or(GameError::InvalidPlayer)?;
 
         game.apply_move(from, to)?;
-
+        // sendin the board
+        self.broadcast_state();
         let event = format!("Player {:?} moved from {:?} to {:?}", pid, from, to);
 
-        self.event_tx.send(event);
+        let _ = self.event_tx.send(event);
 
         Ok(())
     }
@@ -155,6 +156,11 @@ impl GameLoop {
         let player_id = PlayerId(raw_id);
 
         self.players.push((player_name.clone(), player_id.clone()));
+        println!(
+            "Player '{}' joined. Total players: {}",
+            player_name,
+            self.players.len()
+        );
 
         if self.players.len() == 2 {
             let p1_id = self.players[0].1.clone();
@@ -163,6 +169,13 @@ impl GameLoop {
             self.game = Some(GameState::new(p1_id, p2_id));
 
             self.status = GameStatus::InProgress;
+
+            println!(
+                "Game starting! Player {} vs Player {}",
+                self.players[0].0, self.players[1].0
+            );
+            println!("Player {} joined, broadcasting state...", player_name);
+            self.broadcast_state();
 
             let event = format!(
                 "Game started ! {} vs {} ",
@@ -174,5 +187,14 @@ impl GameLoop {
             let _ = self.event_tx.send(event);
         }
         Ok(player_id)
+    }
+
+    fn broadcast_state(&self) {
+        if let Some(game) = &self.game {
+            let state_json = serde_json::to_string(game).unwrap();
+            let msg = format!(r#"{{"type":"state","payload":{}}}"#, state_json);
+            println!("Broadcasting state: {}", msg);
+            let _ = self.event_tx.send(msg);
+        }
     }
 }
