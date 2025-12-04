@@ -108,10 +108,6 @@ impl GameLoop {
         game.apply_move(pid, from, to)?;
         // sendin the board
         self.broadcast_state();
-        let event = format!("Player {:?} moved from {:?} to {:?}", pid, from, to);
-
-        let _ = self.event_tx.send(event);
-
         Ok(())
     }
 
@@ -176,12 +172,6 @@ impl GameLoop {
             );
             println!("Player {} joined, broadcasting state...", player_name);
             self.broadcast_state();
-
-            let event = format!(
-                "Game started ! {} vs {} ",
-                self.players[0].0, self.players[1].0
-            );
-            let _ = self.event_tx.send(event);
         } else {
             let event = format!("Player {} joined. Waiting for players ", player_name);
             let _ = self.event_tx.send(event);
