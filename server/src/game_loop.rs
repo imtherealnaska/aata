@@ -64,7 +64,6 @@ impl GameLoop {
     }
 
     pub async fn run(&mut self) {
-        // TODO: infinite loop
         while let Some(cmd) = self.cmd_rx.recv().await {
             match cmd {
                 Command::MakeMove {
