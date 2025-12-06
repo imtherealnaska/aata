@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 
 /// designing JSON format
@@ -28,6 +27,7 @@ pub enum SlidePattern {
     Omni,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PieceRule {
     pub name: String,
     pub symbol: String,
