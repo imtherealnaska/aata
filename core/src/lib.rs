@@ -1,4 +1,5 @@
 pub mod errors;
+pub mod rules;
 
 use std::array;
 
