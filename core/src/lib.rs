@@ -1,10 +1,11 @@
 pub mod errors;
+pub mod rules;
 
-use std::array;
+use std::{array, collections::HashMap};
 
 use serde::Serialize;
 
-use crate::errors::GameError;
+use crate::{errors::GameError, rules::PieceRule};
 
 /*
 idea is to use type system a bit more , so (id , type) should not be jumbled
@@ -29,6 +30,8 @@ pub struct GameState {
     #[serde(rename = "current_turn")]
     pub turn: PlayerId,
     pub players: (PlayerId, PlayerId),
+
+    pub rules: HashMap<String, PieceRule>,
 }
 
 impl GameState {
@@ -50,6 +53,7 @@ impl GameState {
             board,
             turn: player1.clone(),
             players: (player1.clone(), player2),
+            rules: HashMap::new(),
         }
     }
 
@@ -59,6 +63,81 @@ impl GameState {
         from: (u8, u8),
         to: (u8, u8),
     ) -> Result<(), GameError> {
+        let piece = self.board[from.1 as usize][from.0 as usize]
+            .as_ref()
+            .unwrap();
+
+        let rule = self
+            .rules
+            .get(&piece.piece_type.0)
+            .ok_or(GameError::ViolatesRule(format!(
+                "Unknown piece: {}",
+                piece.piece_type.0
+            )))?;
+
+        let dx = to.0 as i8 - from.0 as i8;
+        let dy = to.1 as i8 - from.1 as i8;
+
+        let fy = if piece.owner == self.players.0 { 1 } else { -1 };
+
+        let mut valid = false;
+        for cap in &rule.capabilitites {
+            match cap {
+                rules::MovementCap::Slide {
+                    pattern,
+                    range,
+                    can_jump,
+                    only_forward,
+                } => {
+                    if *only_forward {
+                        // realised -y for 2nd player and +y for first player
+                        if dy.signum() != 0 && dy.signum() != fy {
+                            continue;
+                        }
+                        if dy != 0 && dy.signum() != fy {
+                            continue;
+                        }
+                    }
+
+                    let dist = dx.abs().max(dy.abs()) as u8;
+                    if *range > 0 && dist > *range {
+                        continue;
+                    }
+
+                    let matches = match pattern {
+                        rules::SlidePattern::FrontBack => dx == 0 || dy == 0,
+                        rules::SlidePattern::Diagonal => dx.abs() == dy.abs(),
+                        rules::SlidePattern::Omni => dx == 0 || dy == 0 || dx.abs() == dy.abs(),
+                    };
+
+                    if !matches {
+                        continue;
+                    }
+
+                    if !*can_jump {
+                        if self.check_path_clear(from, to).is_err() {
+                            continue;
+                        }
+                    }
+
+                    valid = true;
+                    break;
+                }
+                rules::MovementCap::Leap { possibilities } => {
+                    if possibilities.contains(&(dx, dy)) {
+                        valid = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if !valid {
+            return Err(GameError::ViolatesRule(
+                "Move not allowed by any rule".into(),
+            ));
+        }
+
         // Check if it's the player's turn
         if player_id != &self.turn {
             return Err(GameError::NotYourTurn {
@@ -108,6 +187,32 @@ impl GameState {
         } else {
             self.players.1.clone()
         };
+        Ok(())
+    }
+
+    fn check_path_clear(&self, from: (u8, u8), to: (u8, u8)) -> Result<(), GameError> {
+        let dx = to.0 as i8 - from.0 as i8;
+        let dy = to.1 as i8 - from.1 as i8;
+
+        let step_x = dx.signum();
+        let step_y = dy.signum();
+
+        // if its not straigjt line or diag its a jump (knight)
+        if dx.abs() != dy.abs() && dx != 0 && dy != 0 {
+            return Ok(());
+        }
+
+        let mut curr_x = from.0 as i8 + step_x;
+        let mut curr_y = from.1 as i8 + step_y;
+
+        while (curr_x, curr_y) != (to.0 as i8, to.1 as i8) {
+            if self.board[curr_y as usize][curr_x as usize].is_some() {
+                return Err(GameError::ViolatesRule("Path is blocked".into()));
+            }
+            curr_x += step_x;
+            curr_y += step_y;
+        }
+
         Ok(())
     }
 }
