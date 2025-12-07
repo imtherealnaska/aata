@@ -35,24 +35,22 @@ export function useGameSocket() {
         if (data.type === "state") {
           console.log("Received state update:", data.payload);
           setGameState(data.payload);
+          // Don't automatically clear pendingVote on state updates
+          // It will be cleared when vote is accepted or rejected
         } else if (data.type === "join_success") {
           // Handle join success and store player_id
           console.log("Join successful, player_id:", data.payload.player_id);
           playerIdRef.current = data.payload.player_id;
         } else if (data.type === "vote_requested") {
           // Handle vote request - only show to non-proposer
-          console.log("Vote requested:", data.payload);
           const voteData = data.payload as VoteRequestPayload;
           // Only set pending vote if this player is NOT the proposer
           if (playerIdRef.current && voteData.proposer_id !== playerIdRef.current) {
             setPendingVote(voteData);
-          } else {
-            console.log("Ignoring vote request - you are the proposer");
-          }
-        } else if (data.type === "vote_rejected") {
+          }        } else if (data.type === "vote_rejected") {
           // Clear pending vote when rejected
           console.log("Vote rejected");
-          setPendingVote(null);
+          setPendingVote(null); // Clear modal on result
         } else {
           // It's a system message or event
           const msgText = typeof data.payload === 'string' ? data.payload : JSON.stringify(data);
@@ -107,6 +105,7 @@ export function useGameSocket() {
       const msg: ClientMessage = { type: "vote", payload: { accept } };
       console.log("Sending vote:", msg);
       socketRef.current.send(JSON.stringify(msg));
+      setPendingVote(null); // Optimistically close
     }
   };
 

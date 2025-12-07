@@ -237,7 +237,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
                                 let cmd = Command::CastVote {
                                     player_id: pid.clone(),
-                                    vote: accept,
+                                    accept,
                                     response: resp_tx,
                                 };
 

@@ -36,6 +36,7 @@ export type ClientMessage =
 // Payload for vote_requested messages
 export interface VoteRequestPayload {
   proposer_id: string;
+  proposer_name: string;
   rule: PieceRule;
 }
 

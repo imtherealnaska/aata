@@ -35,7 +35,7 @@ function App() {
 
     // Get capabilities from the rules, not from the piece
     const rule = gameState.rules[piece.piece_type];
-    if (!rule?.capabilitites) return new Set();
+    if (!rule?.capabilities) return new Set();
 
     const validMoves = new Set<string>();
 
@@ -48,7 +48,7 @@ function App() {
         // Determine forward direction based on player
         const forwardY = gameState.players[0] === piece.owner ? 1 : -1;
 
-        if (isMoveValid(dx, dy, rule.capabilitites, forwardY)) {
+        if (isMoveValid(dx, dy, rule.capabilities, forwardY)) {
           validMoves.add(`${toX},${toY}`);
         }
       }
@@ -120,6 +120,7 @@ function App() {
   const isMyTurn = gameState?.current_turn === name;
 
   return (
+    <>
     <div className="min-h-screen bg-gray-800 text-white p-8">
       <div className="flex flex-col gap-8">
       {/* Player Info Header */}
@@ -330,17 +331,19 @@ function App() {
       </div>
       </div>
 
-      {/* Vote Modal */}
+    </div>
+
+      {/* Vote Modal - rendered outside main container for proper overlay */}
       {pendingVote && (
         <VoteModal
-          proposerName={pendingVote.proposer_id}
+          proposerName={pendingVote.proposer_name}
           rule={pendingVote.rule}
           onVote={(accept) => {
             sendVote(accept);
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
