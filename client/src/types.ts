@@ -23,6 +23,8 @@ export interface GameState {
   current_turn: PlayerId;
   players: [PlayerId, PlayerId];
   rules: Record<string, PieceRule>;
+  disagreement_count: number;
+  max_disagreements: number;
 }
 
 // The messages we send TO the server
