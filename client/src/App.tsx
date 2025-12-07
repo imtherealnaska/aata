@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useGameSocket } from "./useGameSocket";
 import { isMoveValid } from "./logic/rule-validator";
 import { RuleBuilder } from "./components/RuleBuilder";
+import { VoteModal } from "./components/VoteModal";
 import type { PieceRule } from "./types/rules";
 
 // Helper to create a Checkerboard pattern
 const isBlackSquare = (x: number, y: number) => (x + y) % 2 === 1;
 
 function App() {
-  const { isConnected, messages, joinGame, sendMove, gameState, proposeRule, spawnPiece } = useGameSocket();
+  const { isConnected, messages, joinGame, sendMove, gameState, proposeRule, spawnPiece, pendingVote, sendVote } = useGameSocket();
   const [name, setName] = useState("");
   const [hasJoined, setHasJoined] = useState(false);
 
@@ -328,6 +329,17 @@ function App() {
         <RuleBuilder onPropose={handleProposeRule} />
       </div>
       </div>
+
+      {/* Vote Modal */}
+      {pendingVote && (
+        <VoteModal
+          proposerName={pendingVote.proposer_id}
+          rule={pendingVote.rule}
+          onVote={(accept) => {
+            sendVote(accept);
+          }}
+        />
+      )}
     </div>
   );
 }

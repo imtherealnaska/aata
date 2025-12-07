@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ClientMessage, GameState, PieceRule } from "./types";
+import type { ClientMessage, GameState, PieceRule, VoteRequestPayload } from "./types";
 
 const WS_URL = "ws://localhost:3000/ws";
 
@@ -7,6 +7,8 @@ export function useGameSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [pendingVote, setPendingVote] = useState<VoteRequestPayload | null>(null);
+  const playerIdRef = useRef<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -33,6 +35,24 @@ export function useGameSocket() {
         if (data.type === "state") {
           console.log("Received state update:", data.payload);
           setGameState(data.payload);
+        } else if (data.type === "join_success") {
+          // Handle join success and store player_id
+          console.log("Join successful, player_id:", data.payload.player_id);
+          playerIdRef.current = data.payload.player_id;
+        } else if (data.type === "vote_requested") {
+          // Handle vote request - only show to non-proposer
+          console.log("Vote requested:", data.payload);
+          const voteData = data.payload as VoteRequestPayload;
+          // Only set pending vote if this player is NOT the proposer
+          if (playerIdRef.current && voteData.proposer_id !== playerIdRef.current) {
+            setPendingVote(voteData);
+          } else {
+            console.log("Ignoring vote request - you are the proposer");
+          }
+        } else if (data.type === "vote_rejected") {
+          // Clear pending vote when rejected
+          console.log("Vote rejected");
+          setPendingVote(null);
         } else {
           // It's a system message or event
           const msgText = typeof data.payload === 'string' ? data.payload : JSON.stringify(data);
@@ -82,6 +102,14 @@ export function useGameSocket() {
     }
   };
 
-  return { isConnected, messages, gameState, joinGame, sendMove, proposeRule, spawnPiece };
+  const sendVote = (accept: boolean) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      const msg: ClientMessage = { type: "vote", payload: { accept } };
+      console.log("Sending vote:", msg);
+      socketRef.current.send(JSON.stringify(msg));
+    }
+  };
+
+  return { isConnected, messages, gameState, pendingVote, joinGame, sendMove, proposeRule, spawnPiece, sendVote };
 
 }

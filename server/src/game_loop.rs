@@ -28,6 +28,11 @@ pub enum Command {
         position: (u8, u8),
         response: oneshot::Sender<Result<(), GameError>>,
     },
+    CastVote {
+        player_id: String,
+        vote: bool,
+        response: oneshot::Sender<Result<(), GameError>>,
+    },
 }
 
 // Should be moved to server
@@ -61,6 +66,7 @@ pub struct GameLoop {
     game: Option<GameState>,
     players: Vec<(String, PlayerId)>,
     status: GameStatus,
+    pending_proposal: Option<(String, core::rules::PieceRule)>,
 }
 
 impl GameLoop {
@@ -71,6 +77,7 @@ impl GameLoop {
             game: None,
             players: Vec::new(),
             status: GameStatus::WaitingForPlayers,
+            pending_proposal: None,
         }
     }
 
@@ -102,7 +109,7 @@ impl GameLoop {
                     rule,
                     response,
                 } => {
-                    let result = self.handle_propose_rule(rule).await;
+                    let result = self.handle_propose_rule(player_id, rule).await;
                     response.send(result);
                 }
                 Command::SpawnPiece {
@@ -125,6 +132,14 @@ impl GameLoop {
                             let _ = response.send(Ok(()));
                         }
                     }
+                }
+                Command::CastVote {
+                    player_id,
+                    vote,
+                    response,
+                } => {
+                    let result = self.handle_vote(player_id, vote).await;
+                    let _ = response.send(result);
                 }
             }
         }
@@ -228,17 +243,53 @@ impl GameLoop {
         }
     }
 
-    async fn handle_propose_rule(&mut self, rule: core::rules::PieceRule) -> Result<(), GameError> {
-        let game = self
-            .game
-            .as_mut()
-            .ok_or(GameError::ViolatesRule("Game not started".into()))?;
+    async fn handle_propose_rule(
+        &mut self,
+        player_id: String,
+        rule: core::rules::PieceRule,
+    ) -> Result<(), GameError> {
+        self.pending_proposal = Some((player_id.clone(), rule.clone()));
 
-        println!("Auto accepts rule : {}", rule.name);
+        let rule_json = serde_json::to_string(&rule).unwrap();
 
-        game.rules.insert(rule.name.clone(), rule);
-        self.broadcast_state();
+        let msg = format!(
+            r#"{{ "type": "vote_requested", "payload": {{ "proposer_id": "{}", "rule": {} }} }}"#,
+            player_id, rule_json
+        );
 
+        let _ = self.event_tx.send(msg);
+        println!("Vote started for rule : {:?}", rule);
+
+        Ok(())
+    }
+
+    async fn handle_vote(&mut self, voter_id: String, accept: bool) -> Result<(), GameError> {
+        let (proposer_id, rule) = self
+            .pending_proposal
+            .as_ref()
+            .ok_or(GameError::ViolatesRule("no vote in progress".into()))?;
+
+        // you proposed m, then implicit yes vote
+        if &voter_id == proposer_id {
+            return Err(GameError::ViolatesRule(
+                "You cannot vote on your own proposal".into(),
+            ));
+        }
+
+        if accept {
+            if let Some(game) = &mut self.game {
+                println!("Rule accepted : {}", rule.name);
+                game.rules.insert(rule.name.clone(), rule.clone());
+                self.pending_proposal = None;
+                self.broadcast_state();
+            }
+        } else {
+            println!("Rejected rule : {}", rule.name);
+            self.pending_proposal = None;
+            let _ = self
+                .event_tx
+                .send(r#"{"type" : "vote_rejected"  , "payload" : "{}"}"#.to_string());
+        }
         Ok(())
     }
 }
