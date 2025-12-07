@@ -43,7 +43,7 @@ export function RuleBuilder({ onPropose, initialRule }: RuleBuilderProps) {
     !COMMON_SYMBOLS.some((s) => s.value === initialRule?.symbol)
   );
   const [capabilities, setCapabilities] = useState<MovementCap[]>(
-    initialRule?.capabilitites || []
+    initialRule?.capabilities || []
   );
 
   // Editor state
@@ -93,7 +93,7 @@ export function RuleBuilder({ onPropose, initialRule }: RuleBuilderProps) {
     const rule: PieceRule = {
       name,
       symbol,
-      capabilitites: capabilities,
+      capabilities: capabilities,
     };
     onPropose(rule);
   };

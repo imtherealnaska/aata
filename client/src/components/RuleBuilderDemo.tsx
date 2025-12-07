@@ -104,8 +104,8 @@ export function RuleBuilderDemo() {
                           {rule.name}
                         </h3>
                         <p className="text-xs text-gray-500">
-                          {rule.capabilitites.length} capability
-                          {rule.capabilitites.length !== 1 ? "s" : ""}
+                          {rule.capabilities.length} capability
+                          {rule.capabilities.length !== 1 ? "s" : ""}
                         </p>
                       </div>
                     </div>
@@ -129,7 +129,7 @@ export function RuleBuilderDemo() {
 
                   {/* Capabilities */}
                   <div className="space-y-2">
-                    {rule.capabilitites.map((cap: MovementCap, capIndex: number) => (
+                    {rule.capabilities.map((cap: MovementCap, capIndex: number) => (
                       <div
                         key={capIndex}
                         className="bg-gray-900 rounded-lg p-3 border border-gray-700"

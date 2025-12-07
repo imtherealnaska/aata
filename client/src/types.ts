@@ -30,12 +30,25 @@ export type ClientMessage =
   | { type: "join"; payload: { name: string } }
   | { type: "move"; payload: { from: [number, number]; to: [number, number] } }
   | { type: "propose_rule"; payload: { rule: PieceRule } }
-  | { type: "spawn"; payload: { name: string; x: number; y: number } };
+  | { type: "spawn"; payload: { name: string; x: number; y: number } }
+  | { type: "vote"; payload: { accept: boolean } };
+
+// Payload for vote_requested messages
+export interface VoteRequestPayload {
+  proposer_id: string;
+  proposer_name: string;
+  rule: PieceRule;
+}
+
+// Payload for join_success messages
+export interface JoinSuccessPayload {
+  player_id: string;
+}
 
 // Server message types
 export interface ServerMessage {
-  type: "state" | "event";
-  payload: GameState | string;
+  type: "state" | "event" | "vote_requested" | "vote_rejected" | "join_success";
+  payload: GameState | string | VoteRequestPayload | JoinSuccessPayload;
 }
 
 // Re-export PieceRule from rules.ts

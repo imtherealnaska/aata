@@ -19,9 +19,28 @@ use game_loop::{Command, GameLoop};
 #[serde(tag = "type", content = "payload")]
 pub enum ClientMessage {
     #[serde(rename = "join")]
-    Join { name: String },
+    Join {
+        name: String,
+    },
     #[serde(rename = "move")]
-    Move { from: (u8, u8), to: (u8, u8) },
+    Move {
+        from: (u8, u8),
+        to: (u8, u8),
+    },
+    #[serde(rename = "propose_rule")]
+    ProposeRule {
+        rule: core::rules::PieceRule,
+    },
+    #[serde(rename = "spawn")]
+    Spawn {
+        name: String,
+        x: u8,
+        y: u8,
+    },
+    #[serde(rename = "vote")]
+    Vote {
+        accept: bool,
+    },
 }
 
 #[derive(Clone)]
@@ -66,15 +85,29 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
     let mut broadcast_rx = state.broadcast_tx.subscribe();
 
+    // Create a channel for sending individual messages to this client
+    let (individual_tx, mut individual_rx) = mpsc::channel::<String>(100);
+
     let mut send_task = tokio::spawn(async move {
-        while let Ok(msg) = broadcast_rx.recv().await {
-            // Serialise a structu here
-            if sender
-                .send(axum::extract::ws::Message::Text(msg.into()))
-                .await
-                .is_err()
-            {
-                break;
+        loop {
+            tokio::select! {
+                // Handle broadcast messages
+                msg = broadcast_rx.recv() => {
+                    match msg {
+                        Ok(msg) => {
+                            if sender.send(axum::extract::ws::Message::Text(msg.into())).await.is_err() {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+                // Handle individual messages
+                Some(msg) = individual_rx.recv() => {
+                    if sender.send(axum::extract::ws::Message::Text(msg.into())).await.is_err() {
+                        break;
+                    }
+                }
             }
         }
     });
@@ -82,6 +115,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     let tx = state.tx.clone();
     let mut recv_tasl = tokio::spawn(async move {
         // Store player_id for this connection
+        // also the session ID , because player_id is SESSIONID
         let mut player_id: Option<String> = None;
 
         while let Some(Ok(msg)) = receiver.next().await {
@@ -102,7 +136,15 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
                             match resp_rx.await {
                                 Ok(Ok(pid)) => {
+                                    println!("Authenticated as {}", pid.0);
                                     player_id = Some(pid.0.clone());
+
+                                    // Send join_success message to this client only
+                                    let join_msg = format!(
+                                        r#"{{"type":"join_success","payload":{{"player_id":"{}"}}}}"#,
+                                        pid.0
+                                    );
+                                    let _ = individual_tx.send(join_msg).await;
                                 }
                                 Ok(Err(e)) => {
                                     println!("Join error: {:?}", e);
@@ -141,6 +183,76 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                 }
                             } else {
                                 println!("Move request without joining first");
+                            }
+                        }
+                        ClientMessage::ProposeRule { rule } => {
+                            if let Some(pid) = &player_id {
+                                let (resp_tx, resp_rx) = oneshot::channel();
+
+                                let cmd = Command::ProposeRule {
+                                    player_id: pid.clone(),
+                                    rule: rule.clone(),
+                                    response: resp_tx,
+                                };
+
+                                if tx.send(cmd).await.is_err() {
+                                    break;
+                                }
+
+                                match resp_rx.await {
+                                    Ok(Ok(())) => println!("Rule propposed: {}", rule.name),
+                                    Ok(Err(e)) => println!("Rule rejected: {:?}", e),
+                                    Err(_) => println!("Channel closed"),
+                                }
+                            } else {
+                                println!("Ignored proposal from this socket");
+                            }
+                        }
+                        ClientMessage::Spawn { name, x, y } => {
+                            if let Some(pid) = &player_id {
+                                let (resp_tx, resp_rx) = oneshot::channel();
+
+                                let cmd = Command::SpawnPiece {
+                                    player_id: pid.clone(),
+                                    piece_name: name.clone(),
+                                    position: (x, y),
+                                    response: resp_tx,
+                                };
+
+                                if tx.send(cmd).await.is_err() {
+                                    break;
+                                }
+
+                                match resp_rx.await {
+                                    Ok(Ok(())) => println!("spawned propposed: {}", name),
+                                    Ok(Err(e)) => println!("spwaned rejected: {:?}", e),
+                                    Err(_) => println!("Channel closed"),
+                                }
+                            } else {
+                                println!("spaned error from this socket");
+                            }
+                        }
+                        ClientMessage::Vote { accept } => {
+                            if let Some(pid) = &player_id {
+                                let (resp_tx, resp_rx) = oneshot::channel();
+
+                                let cmd = Command::CastVote {
+                                    player_id: pid.clone(),
+                                    accept,
+                                    response: resp_tx,
+                                };
+
+                                if tx.send(cmd).await.is_err() {
+                                    break;
+                                }
+
+                                match resp_rx.await {
+                                    Ok(Ok(())) => println!("Vote cast: {}", accept),
+                                    Ok(Err(e)) => println!("Vote rejected: {:?}", e),
+                                    Err(_) => println!("Channel closed"),
+                                }
+                            } else {
+                                println!("Vote attempt without joining first");
                             }
                         }
                     },

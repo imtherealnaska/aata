@@ -30,14 +30,10 @@ export type MovementCap =
       };
     };
 
-/**
- * Complete rule definition for a piece type
- * Note: 'capabilitites' matches Rust backend spelling (has typo)
- */
 export interface PieceRule {
   name: string;
   symbol: string;
-  capabilitites: MovementCap[];
+  capabilities: MovementCap[];
 }
 
 /**

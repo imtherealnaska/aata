@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useGameSocket } from "./useGameSocket";
 import { isMoveValid } from "./logic/rule-validator";
 import { RuleBuilder } from "./components/RuleBuilder";
+import { VoteModal } from "./components/VoteModal";
 import type { PieceRule } from "./types/rules";
 
 // Helper to create a Checkerboard pattern
 const isBlackSquare = (x: number, y: number) => (x + y) % 2 === 1;
 
 function App() {
-  const { isConnected, messages, joinGame, sendMove, gameState, proposeRule, spawnPiece } = useGameSocket();
+  const { isConnected, messages, joinGame, sendMove, gameState, proposeRule, spawnPiece, pendingVote, sendVote } = useGameSocket();
   const [name, setName] = useState("");
   const [hasJoined, setHasJoined] = useState(false);
 
@@ -34,7 +35,7 @@ function App() {
 
     // Get capabilities from the rules, not from the piece
     const rule = gameState.rules[piece.piece_type];
-    if (!rule?.capabilitites) return new Set();
+    if (!rule?.capabilities) return new Set();
 
     const validMoves = new Set<string>();
 
@@ -47,7 +48,7 @@ function App() {
         // Determine forward direction based on player
         const forwardY = gameState.players[0] === piece.owner ? 1 : -1;
 
-        if (isMoveValid(dx, dy, rule.capabilitites, forwardY)) {
+        if (isMoveValid(dx, dy, rule.capabilities, forwardY)) {
           validMoves.add(`${toX},${toY}`);
         }
       }
@@ -119,6 +120,7 @@ function App() {
   const isMyTurn = gameState?.current_turn === name;
 
   return (
+    <>
     <div className="min-h-screen bg-gray-800 text-white p-8">
       <div className="flex flex-col gap-8">
       {/* Player Info Header */}
@@ -328,7 +330,20 @@ function App() {
         <RuleBuilder onPropose={handleProposeRule} />
       </div>
       </div>
+
     </div>
+
+      {/* Vote Modal - rendered outside main container for proper overlay */}
+      {pendingVote && (
+        <VoteModal
+          proposerName={pendingVote.proposer_name}
+          rule={pendingVote.rule}
+          onVote={(accept) => {
+            sendVote(accept);
+          }}
+        />
+      )}
+    </>
   );
 }
 

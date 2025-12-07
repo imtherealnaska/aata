@@ -17,6 +17,22 @@ pub enum Command {
         player_name: String,
         response: oneshot::Sender<Result<PlayerId, JoinError>>,
     },
+    ProposeRule {
+        player_id: String,
+        rule: core::rules::PieceRule,
+        response: oneshot::Sender<Result<(), GameError>>,
+    },
+    SpawnPiece {
+        player_id: String,
+        piece_name: String,
+        position: (u8, u8),
+        response: oneshot::Sender<Result<(), GameError>>,
+    },
+    CastVote {
+        player_id: String,
+        accept: bool,
+        response: oneshot::Sender<Result<(), GameError>>,
+    },
 }
 
 // Should be moved to server
@@ -50,6 +66,7 @@ pub struct GameLoop {
     game: Option<GameState>,
     players: Vec<(String, PlayerId)>,
     status: GameStatus,
+    pending_proposal: Option<(String, core::rules::PieceRule)>,
 }
 
 impl GameLoop {
@@ -60,6 +77,7 @@ impl GameLoop {
             game: None,
             players: Vec::new(),
             status: GameStatus::WaitingForPlayers,
+            pending_proposal: None,
         }
     }
 
@@ -84,6 +102,43 @@ impl GameLoop {
                     response,
                 } => {
                     let result = self.handle_join(player_name).await;
+                    let _ = response.send(result);
+                }
+                Command::ProposeRule {
+                    player_id,
+                    rule,
+                    response,
+                } => {
+                    let result = self.handle_propose_rule(player_id, rule).await;
+                    response.send(result);
+                }
+                Command::SpawnPiece {
+                    player_id,
+                    piece_name,
+                    position,
+                    response,
+                } => {
+                    if let Some(game) = &mut self.game {
+                        if !game.rules.contains_key(&piece_name) {
+                            let _ = response
+                                .send(Err(GameError::ViolatesRule("Rule doest not exist".into())));
+                        } else {
+                            game.board[position.1 as usize][position.0 as usize] =
+                                Some(core::Piece {
+                                    piece_type: core::PieceType(piece_name),
+                                    owner: core::PlayerId(player_id),
+                                });
+                            self.broadcast_state();
+                            let _ = response.send(Ok(()));
+                        }
+                    }
+                }
+                Command::CastVote {
+                    player_id,
+                    accept,
+                    response,
+                } => {
+                    let result = self.handle_vote(player_id, accept).await;
                     let _ = response.send(result);
                 }
             }
@@ -186,5 +241,68 @@ impl GameLoop {
             println!("Broadcasting state: {}", msg);
             let _ = self.event_tx.send(msg);
         }
+    }
+
+    async fn handle_propose_rule(
+        &mut self,
+        player_id: String,
+        rule: core::rules::PieceRule,
+    ) -> Result<(), GameError> {
+        if self.pending_proposal.is_some() {
+            return Err(GameError::ViolatesRule(
+                "Another vote is already in progress".into(),
+            ));
+        }
+
+        let proposer_name = self
+            .players
+            .iter()
+            .find(|(_, id)| id.0 == player_id)
+            .map(|(name, _)| name.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        self.pending_proposal = Some((player_id.clone(), rule.clone()));
+
+        let rule_json = serde_json::to_string(&rule).unwrap();
+        let msg = format!(
+            r#"{{ "type": "vote_requested", "payload": {{ "proposer_id": "{}", "proposer_name": "{}", "rule": {} }} }}"#,
+            player_id, proposer_name, rule_json
+        );
+        let _ = self.event_tx.send(msg);
+
+        println!("Vote started for rule: {}", rule.name);
+        Ok(())
+    }
+
+    async fn handle_vote(&mut self, voter_id: String, accept: bool) -> Result<(), GameError> {
+        let (proposer_id, rule) = self
+            .pending_proposal
+            .as_ref()
+            .ok_or(GameError::ViolatesRule("No vote in progress".into()))?;
+
+        if &voter_id == proposer_id {
+            return Err(GameError::ViolatesRule(
+                "You cannot vote on your own proposal".into(),
+            ));
+        }
+
+        if accept {
+            if let Some(game) = &mut self.game {
+                println!("Rule Accepted: {}", rule.name);
+                game.rules.insert(rule.name.clone(), rule.clone());
+
+                self.pending_proposal = None;
+
+                self.broadcast_state();
+            }
+        } else {
+            println!("Rule Rejected: {}", rule.name);
+            self.pending_proposal = None;
+            let _ = self
+                .event_tx
+                .send(r#"{ "type": "vote_rejected", "payload": {} }"#.to_string());
+        }
+
+        Ok(())
     }
 }
