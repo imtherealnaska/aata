@@ -6,6 +6,7 @@
 
 import { isMoveValid } from "../logic/rule-validator";
 import type { MovementCap } from "../types/rules";
+import { isLeapCapability } from "../types/rules";
 
 interface PreviewGridProps {
   capabilities: MovementCap[];
@@ -34,17 +35,17 @@ export function PreviewGrid({
     const isValid = isMoveValid(dx, dy, capabilities, forwardY);
 
     // Determine cell styling
-    let bgClass = "bg-gray-800";
-    let borderClass = "border-gray-700";
+    let bgClass = "bg-slate-800/50";
+    let borderClass = "border-slate-700/50";
     let contentClass = "";
 
     if (isCenter) {
       bgClass = "bg-gradient-to-br from-blue-600 to-blue-700";
-      borderClass = "border-blue-500";
+      borderClass = "border-blue-500 shadow-lg shadow-blue-500/30";
     } else if (isValid) {
       bgClass = "bg-gradient-to-br from-green-500 to-green-600";
-      borderClass = "border-green-400";
-      contentClass = "hover:scale-110";
+      borderClass = "border-green-400 shadow-lg shadow-green-500/20";
+      contentClass = "hover:scale-110 cursor-pointer";
     }
 
     // Show coordinates on hover for debugging
@@ -53,24 +54,24 @@ export function PreviewGrid({
     return (
       <div
         key={index}
-        className={`relative w-full aspect-square rounded-lg flex items-center justify-center border transition-all ${bgClass} ${borderClass} ${contentClass} group`}
+        className={`relative w-full aspect-square rounded-xl flex items-center justify-center border transition-all ${bgClass} ${borderClass} ${contentClass} group`}
         title={showCoords ? `(${dx}, ${dy})` : "Piece position"}
       >
         {isCenter && (
-          <span className="text-3xl sm:text-4xl drop-shadow-lg">
+          <span className="text-3xl sm:text-4xl drop-shadow-2xl animate-pulse-slow">
             {symbol || "♟"}
           </span>
         )}
         {isValid && !isCenter && (
           <div className="relative">
-            <div className="w-3 h-3 bg-white rounded-full opacity-70 group-hover:opacity-100 transition-opacity" />
-            <div className="absolute inset-0 w-3 h-3 bg-white rounded-full animate-ping opacity-30" />
+            <div className="w-4 h-4 bg-white rounded-full opacity-80 group-hover:opacity-100 transition-all shadow-lg" />
+            <div className="absolute inset-0 w-4 h-4 bg-white rounded-full animate-ping opacity-20" />
           </div>
         )}
         {/* Coordinate overlay on hover */}
         {showCoords && (
-          <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-            <span className="text-white text-xs font-mono">
+          <div className="absolute inset-0 bg-slate-900/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl backdrop-blur-sm">
+            <span className="text-white text-xs font-mono font-semibold">
               {dx > 0 ? `+${dx}` : dx},{dy > 0 ? `+${dy}` : dy}
             </span>
           </div>
@@ -80,29 +81,32 @@ export function PreviewGrid({
   };
 
   return (
-    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 flex flex-col gap-4">
+    <div className="bg-gradient-to-br from-slate-800/60 to-slate-800/30 rounded-2xl p-6 border border-slate-700/50 flex flex-col gap-5 shadow-xl backdrop-blur-sm hover:border-slate-600/50 transition-all">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <span className="text-yellow-400">🎯</span> Movement Preview
+          <h3 className="text-lg font-semibold text-white flex items-center gap-3">
+            <span className="text-2xl">🎯</span>
+            <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              Movement Preview
+            </span>
           </h3>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-slate-400 mt-1.5">
             Simulates valid moves from piece perspective
           </p>
         </div>
         <button
           onClick={onTogglePerspective}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-all border border-gray-600"
+          className="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-semibold transition-all border border-slate-600/50 shadow-lg hover:shadow-xl hover:scale-105"
         >
           Player {playerPerspective} View
         </button>
       </div>
 
       {/* Grid */}
-      <div className="bg-gray-900 rounded-xl p-4 shadow-inner">
+      <div className="bg-slate-900/70 rounded-2xl p-5 shadow-2xl border border-slate-800/50">
         <div
-          className="grid gap-1.5"
+          className="grid gap-2"
           style={{
             gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
           }}
@@ -116,31 +120,31 @@ export function PreviewGrid({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 text-xs">
+      <div className="flex items-center justify-center gap-8 text-xs bg-slate-900/30 py-3 rounded-xl border border-slate-700/30">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-600 to-blue-700 border border-blue-500" />
-          <span className="text-gray-400">Piece Position</span>
+          <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 border border-blue-500 shadow-lg shadow-blue-500/30" />
+          <span className="text-slate-400 font-medium">Piece Position</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gradient-to-br from-green-500 to-green-600 border border-green-400" />
-          <span className="text-gray-400">Valid Move</span>
+          <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-green-500 to-green-600 border border-green-400 shadow-lg shadow-green-500/30" />
+          <span className="text-slate-400 font-medium">Valid Move</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gray-800 border border-gray-700" />
-          <span className="text-gray-400">Invalid</span>
+          <div className="w-5 h-5 rounded-lg bg-slate-800 border border-slate-700" />
+          <span className="text-slate-400 font-medium">Invalid</span>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 pt-4 border-t border-gray-700">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-400">
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-700/50">
+        <div className="text-center bg-slate-900/30 py-4 rounded-xl border border-slate-700/30 hover:border-blue-500/30 transition-all">
+          <div className="text-3xl font-bold text-blue-400 mb-1">
             {capabilities.length}
           </div>
-          <div className="text-xs text-gray-500">Capabilities</div>
+          <div className="text-xs text-slate-500 font-medium">Capabilities</div>
         </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-green-400">
+        <div className="text-center bg-slate-900/30 py-4 rounded-xl border border-slate-700/30 hover:border-green-500/30 transition-all">
+          <div className="text-3xl font-bold text-green-400 mb-1">
             {capabilities.reduce((count, cap) => {
               let moves = 0;
               for (let y = 0; y < gridSize; y++) {
@@ -153,21 +157,22 @@ export function PreviewGrid({
               return count + moves;
             }, 0)}
           </div>
-          <div className="text-xs text-gray-500">Valid Moves</div>
+          <div className="text-xs text-slate-500 font-medium">Valid Moves</div>
         </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-purple-400">
-            {capabilities.filter((c) => c.type === "leap").length}
+        <div className="text-center bg-slate-900/30 py-4 rounded-xl border border-slate-700/30 hover:border-purple-500/30 transition-all">
+          <div className="text-3xl font-bold text-purple-400 mb-1">
+            {capabilities.filter((c) => isLeapCapability(c)).length}
           </div>
-          <div className="text-xs text-gray-500">Leap Rules</div>
+          <div className="text-xs text-slate-500 font-medium">Leap Rules</div>
         </div>
       </div>
 
       {/* Info box */}
       {capabilities.length === 0 && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-center">
-          <p className="text-yellow-400 text-sm">
-            ⚠️ Add capabilities to see valid moves
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-5 text-center shadow-lg">
+          <p className="text-yellow-400 text-sm font-semibold flex items-center justify-center gap-2">
+            <span className="text-lg">⚠️</span>
+            Add capabilities to see valid moves
           </p>
         </div>
       )}

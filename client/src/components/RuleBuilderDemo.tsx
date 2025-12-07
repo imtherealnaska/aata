@@ -5,8 +5,9 @@
 
 import { useState } from "react";
 import { RuleBuilder } from "./RuleBuilder";
-import type { PieceRule } from "../types/rules";
+import type { PieceRule, MovementCap } from "../types/rules";
 import { describeCapability } from "../logic/rule-validator";
+import { isSlideCapability } from "../types/rules";
 
 export function RuleBuilderDemo() {
   const [proposedRules, setProposedRules] = useState<PieceRule[]>([]);
@@ -103,8 +104,8 @@ export function RuleBuilderDemo() {
                           {rule.name}
                         </h3>
                         <p className="text-xs text-gray-500">
-                          {rule.capabilities.length} capability
-                          {rule.capabilities.length !== 1 ? "s" : ""}
+                          {rule.capabilitites.length} capability
+                          {rule.capabilitites.length !== 1 ? "s" : ""}
                         </p>
                       </div>
                     </div>
@@ -128,19 +129,19 @@ export function RuleBuilderDemo() {
 
                   {/* Capabilities */}
                   <div className="space-y-2">
-                    {rule.capabilities.map((cap, capIndex) => (
+                    {rule.capabilitites.map((cap: MovementCap, capIndex: number) => (
                       <div
                         key={capIndex}
                         className="bg-gray-900 rounded-lg p-3 border border-gray-700"
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          {cap.type === "slide" ? (
+                          {isSlideCapability(cap) ? (
                             <span className="text-blue-400">→</span>
                           ) : (
                             <span className="text-purple-400">⇝</span>
                           )}
                           <span className="text-white text-sm font-medium">
-                            {cap.type === "slide" ? "Slide" : "Leap"}
+                            {isSlideCapability(cap) ? "Slide" : "Leap"}
                           </span>
                         </div>
                         <p className="text-xs text-gray-400 ml-5">

@@ -6,21 +6,28 @@
 export type SlidePattern = "linear" | "diagonal" | "omni";
 
 /**
- * Movement capability types
+ * Movement capability types - matches Rust externally tagged enum format
  * - slide: Continuous movement in a direction (like rook, bishop, queen)
  * - leap: Jump to specific offsets (like knight)
+ *
+ * Note: This uses externally tagged enum format to match Rust serde default.
+ * JSON format examples:
+ * - Slide: { "slide": { "pattern": "linear", "range": 1, "can_jump": false, "only_forward": false } }
+ * - Leap: { "leap": { "possibilities": [[1, 2], [2, 1]] } }
  */
 export type MovementCap =
   | {
-      type: "slide";
-      pattern: SlidePattern;
-      range: number; // 0 = infinite, 1-8 otherwise
-      can_jump: boolean;
-      only_forward: boolean;
+      slide: {
+        pattern: SlidePattern;
+        range: number; // 0 = infinite, 1-8 otherwise
+        can_jump: boolean;
+        only_forward: boolean;
+      };
     }
   | {
-      type: "leap";
-      possibilities: [number, number][]; // List of relative (x,y) jumps
+      leap: {
+        possibilities: [number, number][]; // List of relative (x,y) jumps
+      };
     };
 
 /**
@@ -42,11 +49,12 @@ export const createSlideCapability = (
   can_jump: boolean = false,
   only_forward: boolean = false
 ): MovementCap => ({
-  type: "slide",
-  pattern,
-  range,
-  can_jump,
-  only_forward,
+  slide: {
+    pattern,
+    range,
+    can_jump,
+    only_forward,
+  },
 });
 
 /**
@@ -55,6 +63,21 @@ export const createSlideCapability = (
 export const createLeapCapability = (
   possibilities: [number, number][] = []
 ): MovementCap => ({
-  type: "leap",
-  possibilities,
+  leap: {
+    possibilities,
+  },
 });
+
+/**
+ * Type guard to check if a capability is a Slide
+ */
+export const isSlideCapability = (cap: MovementCap): cap is { slide: { pattern: SlidePattern; range: number; can_jump: boolean; only_forward: boolean } } => {
+  return 'slide' in cap;
+};
+
+/**
+ * Type guard to check if a capability is a Leap
+ */
+export const isLeapCapability = (cap: MovementCap): cap is { leap: { possibilities: [number, number][] } } => {
+  return 'leap' in cap;
+};

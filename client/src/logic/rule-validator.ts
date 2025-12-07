@@ -5,6 +5,7 @@
  */
 
 import type { MovementCap, SlidePattern } from "../types/rules";
+import { isSlideCapability, isLeapCapability } from "../types/rules";
 
 /**
  * Check if a move from (0,0) to (dx, dy) is valid based on capabilities
@@ -25,9 +26,9 @@ export function isMoveValid(
   if (dx === 0 && dy === 0) return false; // Can't move to self
 
   for (const cap of caps) {
-    if (cap.type === "slide") {
+    if (isSlideCapability(cap)) {
       // Check forward-only constraint
-      if (cap.only_forward) {
+      if (cap.slide.only_forward) {
         // In preview, forward is based on forwardY direction
         if (dy !== 0 && Math.sign(dy) !== forwardY) {
           continue;
@@ -40,12 +41,12 @@ export function isMoveValid(
 
       // Check range constraint
       const dist = Math.max(Math.abs(dx), Math.abs(dy));
-      if (cap.range > 0 && dist > cap.range) {
+      if (cap.slide.range > 0 && dist > cap.slide.range) {
         continue;
       }
 
       // Check pattern matching
-      const matchesPattern = checkPatternMatch(dx, dy, cap.pattern);
+      const matchesPattern = checkPatternMatch(dx, dy, cap.slide.pattern);
       if (!matchesPattern) {
         continue;
       }
@@ -53,9 +54,9 @@ export function isMoveValid(
       // If we reached here, this capability allows the move
       // Note: can_jump and path checking happen in the actual game state
       return true;
-    } else if (cap.type === "leap") {
+    } else if (isLeapCapability(cap)) {
       // Check if (dx, dy) exists in the possibilities list
-      const match = cap.possibilities.some(
+      const match = cap.leap.possibilities.some(
         ([ox, oy]) => ox === dx && oy === dy
       );
       if (match) return true;
@@ -115,21 +116,22 @@ export function generateValidMoves(
  * Get a human-readable description of a capability
  */
 export function describeCapability(cap: MovementCap): string {
-  if (cap.type === "slide") {
-    let desc = `Slide ${cap.pattern}`;
-    if (cap.range === 0) {
+  if (isSlideCapability(cap)) {
+    let desc = `Slide ${cap.slide.pattern}`;
+    if (cap.slide.range === 0) {
       desc += " (unlimited range)";
     } else {
-      desc += ` (${cap.range} square${cap.range > 1 ? "s" : ""})`;
+      desc += ` (${cap.slide.range} square${cap.slide.range > 1 ? "s" : ""})`;
     }
-    if (cap.only_forward) {
+    if (cap.slide.only_forward) {
       desc += " [forward only]";
     }
-    if (cap.can_jump) {
+    if (cap.slide.can_jump) {
       desc += " [can jump]";
     }
     return desc;
-  } else {
-    return `Leap (${cap.possibilities.length} pattern${cap.possibilities.length !== 1 ? "s" : ""})`;
+  } else if (isLeapCapability(cap)) {
+    return `Leap (${cap.leap.possibilities.length} pattern${cap.leap.possibilities.length !== 1 ? "s" : ""})`;
   }
+  return "Unknown capability";
 }

@@ -8,12 +8,16 @@ import type { PieceRule } from "./types/rules";
 const isBlackSquare = (x: number, y: number) => (x + y) % 2 === 1;
 
 function App() {
-  const { isConnected, messages, joinGame, sendMove, gameState, proposeRule } = useGameSocket();
+  const { isConnected, messages, joinGame, sendMove, gameState, proposeRule, spawnPiece } = useGameSocket();
   const [name, setName] = useState("");
   const [hasJoined, setHasJoined] = useState(false);
 
   // Local selection state (Start of a move)
   const [selected, setSelected] = useState<[number, number] | null>(null);
+
+  // Spawn mode state
+  const [spawnMode, setSpawnMode] = useState(false);
+  const [selectedPieceToSpawn, setSelectedPieceToSpawn] = useState<string>("");
 
   // Handle piece rule proposals
   const handleProposeRule = (rule: PieceRule) => {
@@ -112,22 +116,72 @@ function App() {
   }
 
   // 2. GAME VIEW
+  const isMyTurn = gameState?.current_turn === name;
+
   return (
     <div className="min-h-screen bg-gray-800 text-white p-8">
+      <div className="flex flex-col gap-8">
+      {/* Player Info Header */}
+      <div className="bg-gray-900 p-4 rounded-lg border-2 border-gray-700 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="text-2xl font-bold text-blue-400">
+            You: {name}
+          </div>
+          <div className="text-sm text-gray-400">
+            Status: <span className={isConnected ? "text-green-400" : "text-red-400"}>
+              {isConnected ? "Connected" : "Disconnected"}
+            </span>
+          </div>
+        </div>
+        {gameState && (
+          <div className="flex items-center gap-4">
+            <div className="text-lg">
+              Current Turn: <span className="text-yellow-400 font-bold">
+                {gameState.current_turn}
+              </span>
+            </div>
+            {isMyTurn && (
+              <div className="bg-green-600 px-4 py-2 rounded-lg font-bold animate-pulse">
+                YOUR TURN
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-8">
         {/* LEFT: Game Board */}
         <div className="flex flex-col items-center">
-        <div className="mb-4 text-xl">
-          Status: <span className={isConnected ? "text-green-400" : "text-red-400"}>
-            {isConnected ? "Connected" : "Disconnected"}
-          </span>
-        </div>
 
+        {/* Player Status Cards */}
         {gameState && (
-          <div className="mb-4 text-lg">
-            Current Turn: <span className="text-yellow-400 font-bold">
-              {gameState.current_turn}
-            </span>
+          <div className="mb-4 flex gap-4 w-full justify-center">
+            {gameState.players.map((player, idx) => {
+              const isThisPlayer = player === name;
+              const isPlayerTurn = player === gameState.current_turn;
+              return (
+                <div
+                  key={idx}
+                  className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                    isPlayerTurn
+                      ? "border-yellow-400 bg-yellow-900/30"
+                      : "border-gray-600 bg-gray-800"
+                  } ${isThisPlayer ? "ring-2 ring-blue-500" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-lg">
+                        {isThisPlayer ? "👤 YOU" : "👥 Opponent"}
+                      </div>
+                      <div className="text-sm text-gray-300">{player}</div>
+                    </div>
+                    {isPlayerTurn && (
+                      <div className="text-yellow-400 font-bold">▶</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -156,7 +210,12 @@ function App() {
                     key={`${x}-${y}`}
                     className={`w-16 h-16 flex items-center justify-center cursor-pointer transition-colors ${bgClass} hover:opacity-80`}
                     onClick={() => {
-                      if (selected) {
+                      if (spawnMode && selectedPieceToSpawn) {
+                        // Spawn mode: place a piece at the clicked square
+                        spawnPiece(selectedPieceToSpawn, x, y);
+                        setSpawnMode(false);
+                        setSelectedPieceToSpawn("");
+                      } else if (selected) {
                         // If already selected, this click is the DESTINATION
                         sendMove(selected, [x, y]);
                         setSelected(null); // Reset
@@ -187,7 +246,20 @@ function App() {
         </div>
 
         <div className="mt-4 text-sm text-gray-400">
-          {selected ? (
+          {spawnMode ? (
+            <div className="text-purple-400">
+              Spawn Mode: Click a square to spawn "{selectedPieceToSpawn}".
+              <button
+                onClick={() => {
+                  setSpawnMode(false);
+                  setSelectedPieceToSpawn("");
+                }}
+                className="ml-2 text-red-400 hover:text-red-300"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : selected ? (
             <>
               <div>Selected: ({selected[0]}, {selected[1]})</div>
               <div className="text-green-400">
@@ -222,9 +294,39 @@ function App() {
         </div>
       </div>
 
+      {/* MIDDLE: Spawn Panel */}
+      {gameState && Object.keys(gameState.rules).length > 0 && (
+        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700">
+          <h3 className="text-xl font-bold mb-4">Spawn Pieces</h3>
+          <div className="flex flex-wrap gap-3">
+            {Object.keys(gameState.rules).map((pieceName) => (
+              <button
+                key={pieceName}
+                onClick={() => {
+                  setSpawnMode(true);
+                  setSelectedPieceToSpawn(pieceName);
+                  setSelected(null); // Clear any movement selection
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedPieceToSpawn === pieceName && spawnMode
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                {gameState.rules[pieceName].symbol} {pieceName}
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-gray-500 mt-3">
+            Click a piece type above, then click on the board to spawn it.
+          </p>
+        </div>
+      )}
+
       {/* BOTTOM: Rule Builder */}
-      <div className="mt-8 flex justify-center">
+      <div className="flex justify-center">
         <RuleBuilder onPropose={handleProposeRule} />
+      </div>
       </div>
     </div>
   );

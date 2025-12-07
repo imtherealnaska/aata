@@ -29,7 +29,8 @@ export interface GameState {
 export type ClientMessage =
   | { type: "join"; payload: { name: string } }
   | { type: "move"; payload: { from: [number, number]; to: [number, number] } }
-  | { type: "propose_rule"; payload: { rule: PieceRule } };
+  | { type: "propose_rule"; payload: { rule: PieceRule } }
+  | { type: "spawn"; payload: { name: string; x: number; y: number } };
 
 // Server message types
 export interface ServerMessage {

@@ -74,6 +74,14 @@ export function useGameSocket() {
     }
   };
 
-  return { isConnected, messages, gameState, joinGame, sendMove, proposeRule };
+  const spawnPiece = (name: string, x: number, y: number) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      const msg: ClientMessage = { type: "spawn", payload: { name, x, y } };
+      console.log("Sending spawn message:", msg);
+      socketRef.current.send(JSON.stringify(msg));
+    }
+  };
+
+  return { isConnected, messages, gameState, joinGame, sendMove, proposeRule, spawnPiece };
 
 }
