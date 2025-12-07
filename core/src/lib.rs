@@ -33,8 +33,9 @@ pub struct GameState {
     #[serde(rename = "current_turn")]
     pub turn: PlayerId,
     pub players: (PlayerId, PlayerId),
-
     pub rules: HashMap<String, PieceRule>,
+    pub disagreement_count: u8,
+    pub max_disagreements: u8,
 }
 
 impl GameState {
@@ -135,6 +136,8 @@ impl GameState {
             turn: player1.clone(),
             players: (player1, player2),
             rules,
+            disagreement_count: 0,
+            max_disagreements: 3,
         }
     }
 

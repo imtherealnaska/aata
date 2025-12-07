@@ -10,6 +10,7 @@ export function useGameSocket() {
   const [pendingVote, setPendingVote] = useState<VoteRequestPayload | null>(null);
   const playerIdRef = useRef<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const voteInProgressRef = useRef<boolean>(false);
 
   useEffect(() => {
     // 1. Connect on Mount
@@ -35,8 +36,12 @@ export function useGameSocket() {
         if (data.type === "state") {
           console.log("Received state update:", data.payload);
           setGameState(data.payload);
-          // Don't automatically clear pendingVote on state updates
-          // It will be cleared when vote is accepted or rejected
+          // Only clear pending vote if a vote was in progress (vote completed)
+          if (voteInProgressRef.current) {
+            console.log("Clearing pending vote - vote was completed");
+            setPendingVote(null);
+            voteInProgressRef.current = false;
+          }
         } else if (data.type === "join_success") {
           // Handle join success and store player_id
           console.log("Join successful, player_id:", data.payload.player_id);
@@ -44,9 +49,16 @@ export function useGameSocket() {
         } else if (data.type === "vote_requested") {
           // Handle vote request - only show to non-proposer
           const voteData = data.payload as VoteRequestPayload;
+          console.log("Vote requested! proposer_id:", voteData.proposer_id, "my player_id:", playerIdRef.current);
           // Only set pending vote if this player is NOT the proposer
           if (playerIdRef.current && voteData.proposer_id !== playerIdRef.current) {
+            console.log("Setting pending vote - I am NOT the proposer");
+            console.log("Vote data:", voteData);
             setPendingVote(voteData);
+            voteInProgressRef.current = true;
+            console.log("After setPendingVote - voteInProgressRef:", voteInProgressRef.current);
+          } else {
+            console.log("NOT setting pending vote - I AM the proposer or no player_id");
           }        } else if (data.type === "vote_rejected") {
           // Clear pending vote when rejected
           console.log("Vote rejected");
@@ -105,7 +117,8 @@ export function useGameSocket() {
       const msg: ClientMessage = { type: "vote", payload: { accept } };
       console.log("Sending vote:", msg);
       socketRef.current.send(JSON.stringify(msg));
-      setPendingVote(null); // Optimistically close
+      // Don't clear immediately - wait for state update
+      // The state update will trigger the clear via voteInProgressRef
     }
   };
 

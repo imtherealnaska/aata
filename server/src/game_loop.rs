@@ -248,6 +248,22 @@ impl GameLoop {
         player_id: String,
         rule: core::rules::PieceRule,
     ) -> Result<(), GameError> {
+        let game = self.game.as_mut().ok_or(GameError::GameNotStarted)?;
+
+        if game.disagreement_count >= game.max_disagreements {
+            println!("Max disagree reached force accepting rule");
+            // force add rule
+            game.rules.insert(rule.name.clone(), rule.clone());
+
+            game.disagreement_count = 0;
+            self.broadcast_state();
+            let _ = self.event_tx.send(
+                r#"{"type" : "consensus_forced" , "payload" : "Disagreement reached"}"#.to_string(),
+            );
+
+            return Ok(());
+        }
+
         if self.pending_proposal.is_some() {
             return Err(GameError::ViolatesRule(
                 "Another vote is already in progress".into(),
@@ -286,22 +302,19 @@ impl GameLoop {
             ));
         }
 
+        let game = self.game.as_mut().ok_or(GameError::GameNotStarted)?;
+
         if accept {
-            if let Some(game) = &mut self.game {
-                println!("Rule Accepted: {}", rule.name);
-                game.rules.insert(rule.name.clone(), rule.clone());
+            println!("Rule Accepted: {}", rule.name);
+            game.rules.insert(rule.name.clone(), rule.clone());
 
-                self.pending_proposal = None;
-
-                self.broadcast_state();
-            }
+            game.disagreement_count = 0;
         } else {
             println!("Rule Rejected: {}", rule.name);
-            self.pending_proposal = None;
-            let _ = self
-                .event_tx
-                .send(r#"{ "type": "vote_rejected", "payload": {} }"#.to_string());
+            self.game.as_mut().unwrap().disagreement_count += 1;
         }
+        self.pending_proposal = None;
+        self.broadcast_state();
 
         Ok(())
     }

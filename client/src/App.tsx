@@ -119,6 +119,9 @@ function App() {
   // 2. GAME VIEW
   const isMyTurn = gameState?.current_turn === name;
 
+  // Debug logging
+  console.log("App render - pendingVote:", pendingVote);
+
   return (
     <>
     <div className="min-h-screen bg-gray-800 text-white p-8">
@@ -150,6 +153,50 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Doomsday Clock */}
+      {gameState && (
+        <div className="bg-gradient-to-r from-red-900 to-orange-900 p-6 rounded-lg border-2 border-red-500 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">⏰</div>
+              <div>
+                <h3 className="text-2xl font-bold text-red-200">Doomsday Clock</h3>
+                <p className="text-sm text-red-300">Disagreements until consensus forced</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <div className="text-5xl font-bold text-white">
+                  {gameState.disagreement_count}
+                </div>
+                <div className="text-sm text-red-300">Disagreements</div>
+              </div>
+              <div className="text-3xl text-red-400">/</div>
+              <div className="text-center">
+                <div className="text-5xl font-bold text-red-400">
+                  {gameState.max_disagreements}
+                </div>
+                <div className="text-sm text-red-300">Maximum</div>
+              </div>
+            </div>
+          </div>
+          {/* Progress Bar */}
+          <div className="mt-4 w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 transition-all duration-500"
+              style={{
+                width: `${(gameState.disagreement_count / gameState.max_disagreements) * 100}%`
+              }}
+            />
+          </div>
+          {gameState.disagreement_count >= gameState.max_disagreements && (
+            <div className="mt-3 bg-red-600 text-white px-4 py-2 rounded font-bold text-center animate-pulse">
+              ⚠️ MAXIMUM REACHED - Next rule will be forced! ⚠️
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-8">
         {/* LEFT: Game Board */}
@@ -334,14 +381,19 @@ function App() {
     </div>
 
       {/* Vote Modal - rendered outside main container for proper overlay */}
-      {pendingVote && (
-        <VoteModal
-          proposerName={pendingVote.proposer_name}
-          rule={pendingVote.rule}
-          onVote={(accept) => {
-            sendVote(accept);
-          }}
-        />
+      {pendingVote ? (
+        <>
+          {console.log("RENDERING VoteModal - pendingVote exists:", pendingVote)}
+          <VoteModal
+            proposerName={pendingVote.proposer_name}
+            rule={pendingVote.rule}
+            onVote={(accept) => {
+              sendVote(accept);
+            }}
+          />
+        </>
+      ) : (
+        console.log("NOT rendering VoteModal - pendingVote is null")
       )}
     </>
   );
