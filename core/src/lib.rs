@@ -5,7 +5,10 @@ use std::{array, collections::HashMap};
 
 use serde::Serialize;
 
-use crate::{errors::GameError, rules::PieceRule};
+use crate::{
+    errors::GameError,
+    rules::{MovementCap, PieceRule, SlidePattern},
+};
 
 /*
 idea is to use type system a bit more , so (id , type) should not be jumbled
@@ -36,24 +39,102 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(player1: PlayerId, player2: PlayerId) -> Self {
-        let mut board: Board = array::from_fn(|_| array::from_fn(|_| None));
+        let mut rules = HashMap::new();
 
+        rules.insert(
+            "Pawn".to_string(),
+            PieceRule {
+                name: "Pawn".to_string(),
+                symbol: "P".to_string(),
+                capabilitites: vec![MovementCap::Slide {
+                    pattern: SlidePattern::FrontBack,
+                    range: 1,
+                    can_jump: false,
+                    only_forward: true,
+                }],
+            },
+        );
+
+        rules.insert(
+            "Knight".to_string(),
+            PieceRule {
+                name: "Knight".to_string(),
+                symbol: "K".to_string(),
+                capabilitites: vec![MovementCap::Leap {
+                    possibilities: vec![
+                        (1, 2), // L shapes
+                        (2, 1),
+                        (2, -1),
+                        (1, -2),
+                        (-1, -2),
+                        (-2, -1),
+                        (-2, 1),
+                        (-1, 2),
+                    ],
+                }],
+            },
+        );
+
+        rules.insert(
+            "Rook".to_string(),
+            PieceRule {
+                name: "Rook".to_string(),
+                symbol: "R".to_string(),
+                capabilitites: vec![MovementCap::Slide {
+                    pattern: SlidePattern::FrontBack,
+                    range: 0, // infinite
+                    can_jump: false,
+                    only_forward: false,
+                }],
+            },
+        );
+
+        let mut board: Board = std::array::from_fn(|_| std::array::from_fn(|_| None));
+
+        // place the pieces
         (0..8).for_each(|i| {
             board[1][i] = Some(Piece {
                 piece_type: PieceType("Pawn".into()),
                 owner: player1.clone(),
             });
+            if i == 0 || i == 7 {
+                board[0][i] = Some(Piece {
+                    piece_type: PieceType("Rook".into()),
+                    owner: player1.clone(),
+                });
+            }
+
+            if i == 1 || i == 6 {
+                board[0][i] = Some(Piece {
+                    piece_type: PieceType("Knight".into()),
+                    owner: player1.clone(),
+                });
+            }
             board[6][i] = Some(Piece {
                 piece_type: PieceType("Pawn".into()),
                 owner: player2.clone(),
             });
+
+            if i == 0 || i == 7 {
+                board[7][i] = Some(Piece {
+                    piece_type: PieceType("Rook".into()),
+                    owner: player2.clone(),
+                });
+            }
+
+            if i == 1 || i == 6 {
+                board[7][i] = Some(Piece {
+                    piece_type: PieceType("Knight".into()),
+                    owner: player2.clone(),
+                });
+            }
         });
 
-        GameState {
+        Self {
             board,
             turn: player1.clone(),
-            players: (player1.clone(), player2),
-            rules: HashMap::new(),
+            players: (player1, player2),
+            rules,
         }
     }
 
