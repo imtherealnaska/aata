@@ -17,6 +17,17 @@ pub enum Command {
         player_name: String,
         response: oneshot::Sender<Result<PlayerId, JoinError>>,
     },
+    ProposeRule {
+        player_id: String,
+        rule: core::rules::PieceRule,
+        response: oneshot::Sender<Result<(), GameError>>,
+    },
+    SpawnPiece {
+        player_id: String,
+        piece_name: String,
+        position: (u8, u8),
+        response: oneshot::Sender<Result<(), GameError>>,
+    },
 }
 
 // Should be moved to server
@@ -85,6 +96,35 @@ impl GameLoop {
                 } => {
                     let result = self.handle_join(player_name).await;
                     let _ = response.send(result);
+                }
+                Command::ProposeRule {
+                    player_id,
+                    rule,
+                    response,
+                } => {
+                    let result = self.handle_propose_rule(rule).await;
+                    response.send(result);
+                }
+                Command::SpawnPiece {
+                    player_id,
+                    piece_name,
+                    position,
+                    response,
+                } => {
+                    if let Some(game) = &mut self.game {
+                        if !game.rules.contains_key(&piece_name) {
+                            let _ = response
+                                .send(Err(GameError::ViolatesRule("Rule doest not exist".into())));
+                        } else {
+                            game.board[position.1 as usize][position.0 as usize] =
+                                Some(core::Piece {
+                                    piece_type: core::PieceType(piece_name),
+                                    owner: core::PlayerId(player_id),
+                                });
+                            self.broadcast_state();
+                            let _ = response.send(Ok(()));
+                        }
+                    }
                 }
             }
         }
@@ -186,5 +226,19 @@ impl GameLoop {
             println!("Broadcasting state: {}", msg);
             let _ = self.event_tx.send(msg);
         }
+    }
+
+    async fn handle_propose_rule(&mut self, rule: core::rules::PieceRule) -> Result<(), GameError> {
+        let game = self
+            .game
+            .as_mut()
+            .ok_or(GameError::ViolatesRule("Game not started".into()))?;
+
+        println!("Auto accepts rule : {}", rule.name);
+
+        game.rules.insert(rule.name.clone(), rule);
+        self.broadcast_state();
+
+        Ok(())
     }
 }
