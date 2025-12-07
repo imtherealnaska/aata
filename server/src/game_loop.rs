@@ -30,7 +30,7 @@ pub enum Command {
     },
     CastVote {
         player_id: String,
-        vote: bool,
+        accept: bool,
         response: oneshot::Sender<Result<(), GameError>>,
     },
 }
@@ -135,10 +135,10 @@ impl GameLoop {
                 }
                 Command::CastVote {
                     player_id,
-                    vote,
+                    accept,
                     response,
                 } => {
-                    let result = self.handle_vote(player_id, vote).await;
+                    let result = self.handle_vote(player_id, accept).await;
                     let _ = response.send(result);
                 }
             }
@@ -248,18 +248,29 @@ impl GameLoop {
         player_id: String,
         rule: core::rules::PieceRule,
     ) -> Result<(), GameError> {
+        if self.pending_proposal.is_some() {
+            return Err(GameError::ViolatesRule(
+                "Another vote is already in progress".into(),
+            ));
+        }
+
+        let proposer_name = self
+            .players
+            .iter()
+            .find(|(_, id)| id.0 == player_id)
+            .map(|(name, _)| name.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+
         self.pending_proposal = Some((player_id.clone(), rule.clone()));
 
         let rule_json = serde_json::to_string(&rule).unwrap();
-
         let msg = format!(
-            r#"{{ "type": "vote_requested", "payload": {{ "proposer_id": "{}", "rule": {} }} }}"#,
-            player_id, rule_json
+            r#"{{ "type": "vote_requested", "payload": {{ "proposer_id": "{}", "proposer_name": "{}", "rule": {} }} }}"#,
+            player_id, proposer_name, rule_json
         );
-
         let _ = self.event_tx.send(msg);
-        println!("Vote started for rule : {:?}", rule);
 
+        println!("Vote started for rule: {}", rule.name);
         Ok(())
     }
 
@@ -267,9 +278,8 @@ impl GameLoop {
         let (proposer_id, rule) = self
             .pending_proposal
             .as_ref()
-            .ok_or(GameError::ViolatesRule("no vote in progress".into()))?;
+            .ok_or(GameError::ViolatesRule("No vote in progress".into()))?;
 
-        // you proposed m, then implicit yes vote
         if &voter_id == proposer_id {
             return Err(GameError::ViolatesRule(
                 "You cannot vote on your own proposal".into(),
@@ -278,18 +288,21 @@ impl GameLoop {
 
         if accept {
             if let Some(game) = &mut self.game {
-                println!("Rule accepted : {}", rule.name);
+                println!("Rule Accepted: {}", rule.name);
                 game.rules.insert(rule.name.clone(), rule.clone());
+
                 self.pending_proposal = None;
+
                 self.broadcast_state();
             }
         } else {
-            println!("Rejected rule : {}", rule.name);
+            println!("Rule Rejected: {}", rule.name);
             self.pending_proposal = None;
             let _ = self
                 .event_tx
-                .send(r#"{"type" : "vote_rejected"  , "payload" : "{}"}"#.to_string());
+                .send(r#"{ "type": "vote_rejected", "payload": {} }"#.to_string());
         }
+
         Ok(())
     }
 }

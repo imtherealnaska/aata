@@ -37,6 +37,7 @@ pub enum ClientMessage {
         x: u8,
         y: u8,
     },
+    #[serde(rename = "vote")]
     Vote {
         accept: bool,
     },

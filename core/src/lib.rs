@@ -46,7 +46,7 @@ impl GameState {
             PieceRule {
                 name: "Pawn".to_string(),
                 symbol: "P".to_string(),
-                capabilitites: vec![MovementCap::Slide {
+                capabilities: vec![MovementCap::Slide {
                     pattern: SlidePattern::FrontBack,
                     range: 1,
                     can_jump: false,
@@ -60,7 +60,7 @@ impl GameState {
             PieceRule {
                 name: "Knight".to_string(),
                 symbol: "K".to_string(),
-                capabilitites: vec![MovementCap::Leap {
+                capabilities: vec![MovementCap::Leap {
                     possibilities: vec![
                         (1, 2), // L shapes
                         (2, 1),
@@ -80,7 +80,7 @@ impl GameState {
             PieceRule {
                 name: "Rook".to_string(),
                 symbol: "R".to_string(),
-                capabilitites: vec![MovementCap::Slide {
+                capabilities: vec![MovementCap::Slide {
                     pattern: SlidePattern::FrontBack,
                     range: 0, // infinite
                     can_jump: false,
@@ -162,7 +162,7 @@ impl GameState {
         let fy = if piece.owner == self.players.0 { 1 } else { -1 };
 
         let mut valid = false;
-        for cap in &rule.capabilitites {
+        for cap in &rule.capabilities {
             match cap {
                 rules::MovementCap::Slide {
                     pattern,

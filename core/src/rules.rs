@@ -31,5 +31,5 @@ pub enum SlidePattern {
 pub struct PieceRule {
     pub name: String,
     pub symbol: String,
-    pub capabilitites: Vec<MovementCap>,
+    pub capabilities: Vec<MovementCap>,
 }
