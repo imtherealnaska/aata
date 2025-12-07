@@ -1,3 +1,5 @@
+import type { MovementCap, PieceRule } from "./types/rules";
+
 // Matches your Rust 'PlayerId'
 export type PlayerId = string;
 
@@ -8,6 +10,7 @@ export type PieceType = string;
 export interface Piece {
   piece_type: PieceType;
   owner: PlayerId;
+  capabilities?: MovementCap[];
 }
 
 // Matches your Rust 'Board' type: [[Option<Piece>; 8]; 8]
@@ -19,15 +22,20 @@ export interface GameState {
   board: Board;
   current_turn: PlayerId;
   players: [PlayerId, PlayerId];
+  rules: Record<string, PieceRule>;
 }
 
 // The messages we send TO the server
 export type ClientMessage =
   | { type: "join"; payload: { name: string } }
-  | { type: "move"; payload: { from: [number, number]; to: [number, number] } };
+  | { type: "move"; payload: { from: [number, number]; to: [number, number] } }
+  | { type: "propose_rule"; payload: { rule: PieceRule } };
 
 // Server message types
 export interface ServerMessage {
   type: "state" | "event";
   payload: GameState | string;
 }
+
+// Re-export PieceRule from rules.ts
+export type { PieceRule, MovementCap };

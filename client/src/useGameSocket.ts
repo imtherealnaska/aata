@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ClientMessage, GameState } from "./types";
+import type { ClientMessage, GameState, PieceRule } from "./types";
 
 const WS_URL = "ws://localhost:3000/ws";
 
@@ -67,5 +67,13 @@ export function useGameSocket() {
     }
   };
 
-  return { isConnected, messages, gameState, joinGame, sendMove };
+  const proposeRule = (rule: PieceRule) => {
+    if (socketRef.current?.readyState == WebSocket.OPEN) {
+      const msg: ClientMessage = { type: "propose_rule", payload: { rule } };
+      socketRef.current.send(JSON.stringify(msg));
+    }
+  };
+
+  return { isConnected, messages, gameState, joinGame, sendMove, proposeRule };
+
 }
