@@ -1,4 +1,5 @@
 import type { PieceRule } from "../types/rules";
+import { getPieceImageUrl } from "../utils/pieceImages";
 
 interface VoteModalProps {
   proposerName: string; // "Alice"
@@ -8,6 +9,9 @@ interface VoteModalProps {
 
 export function VoteModal({ proposerName, rule, onVote }: VoteModalProps) {
   console.log("VoteModal RENDERING with proposer:", proposerName, "rule:", rule);
+
+  const imageUrl = getPieceImageUrl(rule.name, true);
+
   return (
     <div
       className="fixed inset-0 bg-red-500 flex items-center justify-center"
@@ -27,7 +31,16 @@ export function VoteModal({ proposerName, rule, onVote }: VoteModalProps) {
 
         <div className="bg-gray-200 p-4 rounded mb-6 border-4 border-black">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-2xl">{rule.symbol}</span>
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={rule.name}
+                className="w-12 h-12"
+                draggable={false}
+              />
+            ) : (
+              <span className="text-2xl">{rule.symbol}</span>
+            )}
             <span className="font-bold text-blue-400">{rule.name}</span>
           </div>
           <div className="text-sm text-gray-400">
