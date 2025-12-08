@@ -12,15 +12,18 @@ import { isSlideCapability } from "../types/rules";
 export function RuleBuilderDemo() {
   const [proposedRules, setProposedRules] = useState<PieceRule[]>([]);
   const [editingRule, setEditingRule] = useState<PieceRule | undefined>();
+  const [editingRuleKey, setEditingRuleKey] = useState<string | undefined>();
 
   const handlePropose = (rule: PieceRule) => {
     console.log("Proposed rule:", rule);
     setProposedRules([...proposedRules, rule]);
     setEditingRule(undefined);
+    setEditingRuleKey(undefined);
   };
 
   const handleEdit = (rule: PieceRule, index: number) => {
     setEditingRule(rule);
+    setEditingRuleKey(rule.name + index);
     // Remove from list while editing
     setProposedRules(proposedRules.filter((_, i) => i !== index));
   };
@@ -66,7 +69,7 @@ export function RuleBuilderDemo() {
 
         {/* Rule Builder */}
         <div className="flex justify-center">
-          <RuleBuilder onPropose={handlePropose} initialRule={editingRule} />
+          <RuleBuilder key={editingRuleKey} onPropose={handlePropose} initialRule={editingRule} />
         </div>
 
         {/* Proposed Rules */}

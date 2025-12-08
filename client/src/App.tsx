@@ -4,6 +4,8 @@ import { isMoveValid } from "./logic/rule-validator";
 import { RuleBuilder } from "./components/RuleBuilder";
 import { VoteModal } from "./components/VoteModal";
 import type { PieceRule } from "./types/rules";
+import { getPieceImageUrl } from "./utils/pieceImages";
+import { getCustomIconById } from "./utils/customIcons";
 
 // Helper to create a Checkerboard pattern
 const isBlackSquare = (x: number, y: number) => (x + y) % 2 === 1;
@@ -59,25 +61,35 @@ function App() {
 
   const validMoves = selected ? getValidMoves(selected[0], selected[1]) : new Set<string>();
 
-  // Helper to get piece emoji - uses rules from gameState
-  const getPieceEmoji = (pieceType: string): string => {
-    // Default emojis for standard pieces
-    const defaultEmojis: Record<string, string> = {
-      "Pawn": "♟",
-      "Rook": "♜",
-      "Knight": "♞",
-      "Bishop": "♝",
-      "Queen": "♛",
-      "King": "♚",
-    };
-
-    // Check if we have a rule for this piece type with a symbol
-    if (gameState?.rules[pieceType]?.symbol) {
-      return gameState.rules[pieceType].symbol;
+  // Helper to get piece image URL
+  const getPieceImage = (pieceType: string, owner: string): string => {
+    const isWhite = gameState?.players[0] === owner;
+    const standardPieces = ["Pawn", "Rook", "Knight", "Bishop", "Queen", "King"];
+    
+    if (standardPieces.includes(pieceType)) {
+      return getPieceImageUrl(pieceType, isWhite);
     }
 
-    // Fall back to default emoji or first character
-    return defaultEmojis[pieceType] || pieceType[0] || "?";
+    const rule = gameState?.rules[pieceType];
+    if (rule?.symbol) {
+      // This is a custom piece, the symbol is the icon id
+      return getPieceImageUrl(rule.symbol, isWhite);
+    }
+
+    return "";
+  };
+
+  // Helper to get piece symbol for custom pieces (fallback only)
+  const getPieceSymbol = (pieceType: string): string => {
+    const rule = gameState?.rules[pieceType];
+    if (rule?.symbol) {
+        const customIcon = getCustomIconById(rule.symbol);
+        if (customIcon) {
+            return customIcon.svg;
+        }
+        return rule.symbol; // Fallback to symbol for standard pieces
+    }
+    return pieceType[0] || "?";
   };
 
   // --- RENDERING ---
@@ -124,31 +136,25 @@ function App() {
 
   return (
     <>
-    <div className="min-h-screen bg-gray-800 text-white p-8">
-      <div className="flex flex-col gap-8">
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <div className="flex flex-col gap-3 items-center">
       {/* Player Info Header */}
-      <div className="bg-gray-900 p-4 rounded-lg border-2 border-gray-700 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="text-2xl font-bold text-blue-400">
-            You: {name}
-          </div>
-          <div className="text-sm text-gray-400">
-            Status: <span className={isConnected ? "text-green-400" : "text-red-400"}>
-              {isConnected ? "Connected" : "Disconnected"}
+      <div className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex items-center justify-between w-full max-w-5xl">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-blue-400">{name}</span>
+          <span className="text-xs">
+            <span className={isConnected ? "text-green-400" : "text-red-400"}>
+              {isConnected ? "● Connected" : "● Disconnected"}
             </span>
-          </div>
+          </span>
         </div>
         {gameState && (
-          <div className="flex items-center gap-4">
-            <div className="text-lg">
-              Current Turn: <span className="text-yellow-400 font-bold">
-                {gameState.current_turn}
-              </span>
-            </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm">
+              Turn: <span className="text-yellow-400 font-bold">{gameState.current_turn}</span>
+            </span>
             {isMyTurn && (
-              <div className="bg-green-600 px-4 py-2 rounded-lg font-bold animate-pulse">
-                YOUR TURN
-              </div>
+              <span className="bg-green-600 px-3 py-1 rounded text-sm font-bold">YOUR TURN</span>
             )}
           </div>
         )}
@@ -156,78 +162,53 @@ function App() {
 
       {/* Doomsday Clock */}
       {gameState && (
-        <div className="bg-gradient-to-r from-red-900 to-orange-900 p-6 rounded-lg border-2 border-red-500 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">⏰</div>
-              <div>
-                <h3 className="text-2xl font-bold text-red-200">Doomsday Clock</h3>
-                <p className="text-sm text-red-300">Disagreements until consensus forced</p>
-              </div>
+        <div className="bg-red-900 bg-opacity-30 p-3 rounded-lg border border-red-700 w-full max-w-5xl">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⏰</span>
+              <span className="font-bold">Doomsday Clock</span>
             </div>
-            <div className="flex items-center gap-6">
-              <div className="text-center">
-                <div className="text-5xl font-bold text-white">
-                  {gameState.disagreement_count}
-                </div>
-                <div className="text-sm text-red-300">Disagreements</div>
-              </div>
-              <div className="text-3xl text-red-400">/</div>
-              <div className="text-center">
-                <div className="text-5xl font-bold text-red-400">
-                  {gameState.max_disagreements}
-                </div>
-                <div className="text-sm text-red-300">Maximum</div>
-              </div>
-            </div>
+            <span className="text-lg font-bold">
+              {gameState.disagreement_count} / {gameState.max_disagreements}
+            </span>
           </div>
-          {/* Progress Bar */}
-          <div className="mt-4 w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-gray-800 rounded-full h-2">
             <div
-              className="h-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 transition-all duration-500"
+              className="h-full bg-red-600 rounded-full transition-all"
               style={{
                 width: `${(gameState.disagreement_count / gameState.max_disagreements) * 100}%`
               }}
             />
           </div>
-          {gameState.disagreement_count >= gameState.max_disagreements && (
-            <div className="mt-3 bg-red-600 text-white px-4 py-2 rounded font-bold text-center animate-pulse">
-              ⚠️ MAXIMUM REACHED - Next rule will be forced! ⚠️
-            </div>
-          )}
         </div>
       )}
 
-      <div className="flex gap-8">
+      <div className="flex gap-6 w-full max-w-6xl">
         {/* LEFT: Game Board */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col">
 
         {/* Player Status Cards */}
         {gameState && (
-          <div className="mb-4 flex gap-4 w-full justify-center">
+          <div className="mb-2 flex gap-2" style={{ width: '768px' }}>
             {gameState.players.map((player, idx) => {
               const isThisPlayer = player === name;
               const isPlayerTurn = player === gameState.current_turn;
               return (
                 <div
                   key={idx}
-                  className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  className={`flex-1 p-2 rounded border text-center ${
                     isPlayerTurn
-                      ? "border-yellow-400 bg-yellow-900/30"
-                      : "border-gray-600 bg-gray-800"
-                  } ${isThisPlayer ? "ring-2 ring-blue-500" : ""}`}
+                      ? "border-yellow-400 bg-yellow-900 bg-opacity-20"
+                      : "border-gray-700 bg-gray-800"
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-lg">
-                        {isThisPlayer ? "👤 YOU" : "👥 Opponent"}
-                      </div>
-                      <div className="text-sm text-gray-300">{player}</div>
-                    </div>
-                    {isPlayerTurn && (
-                      <div className="text-yellow-400 font-bold">▶</div>
-                    )}
+                  <div className="text-sm font-bold">
+                    {isThisPlayer ? "YOU" : "OPP"}
                   </div>
+                  <div className="text-xs text-gray-400 truncate">{player}</div>
+                  {isPlayerTurn && (
+                    <div className="text-yellow-400">▶</div>
+                  )}
                 </div>
               );
             })}
@@ -235,10 +216,10 @@ function App() {
         )}
 
         {/* THE GRID */}
-        <div className="border-4 border-gray-600 bg-gray-700">
+        <div className="border-4 border-amber-900 bg-amber-900 inline-block shadow-2xl">
           {/* We map 8 rows (y) */}
           {Array.from({ length: 8 }).map((_, y) => (
-            <div key={y} className="flex">
+            <div key={y} className="flex" style={{ height: '96px' }}>
               {/* We map 8 cols (x) */}
               {Array.from({ length: 8 }).map((_, x) => {
 
@@ -248,16 +229,26 @@ function App() {
                 // Styling logic
                 const isSelected = selected?.[0] === x && selected?.[1] === y;
                 const isValidMove = validMoves.has(`${x},${y}`);
-                const bgClass = isSelected
-                  ? "bg-yellow-500" // Highlight selected
-                  : isValidMove
-                  ? "bg-green-500 opacity-70" // Highlight valid moves
-                  : isBlackSquare(x, y) ? "bg-gray-600" : "bg-gray-400"; // Checkerboard
+
+                let bgClass = "";
+                if (isSelected) {
+                  bgClass = "bg-yellow-400"; // Bright yellow for selected
+                } else if (isValidMove) {
+                  bgClass = isBlackSquare(x, y)
+                    ? "bg-green-600 opacity-90" // Dark green on dark squares
+                    : "bg-green-400 opacity-90"; // Light green on light squares
+                } else {
+                  // Classic chess board colors
+                  bgClass = isBlackSquare(x, y)
+                    ? "bg-amber-800" // Dark brown squares
+                    : "bg-amber-100"; // Light cream squares
+                }
 
                 return (
                   <div
                     key={`${x}-${y}`}
-                    className={`w-16 h-16 flex items-center justify-center cursor-pointer transition-colors ${bgClass} hover:opacity-80`}
+                    className={`flex items-center justify-center cursor-pointer border border-amber-900 ${bgClass} hover:brightness-105 transition-all`}
+                    style={{ width: '96px', height: '96px', minWidth: '96px', minHeight: '96px' }}
                     onClick={() => {
                       if (spawnMode && selectedPieceToSpawn) {
                         // Spawn mode: place a piece at the clicked square
@@ -279,11 +270,26 @@ function App() {
                   >
                     {/* Render Piece or Empty */}
                     {piece ? (
-                      <span className="text-3xl font-bold select-none">
-                        {getPieceEmoji(piece.piece_type)}
-                      </span>
+                      (() => {
+                        const imageUrl = getPieceImage(piece.piece_type, piece.owner);
+                        return imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={piece.piece_type}
+                            className="w-20 h-20 select-none drop-shadow-lg"
+                            draggable={false}
+                          />
+                        ) : (
+                          <div
+                            className="w-20 h-20 select-none drop-shadow-lg"
+                            dangerouslySetInnerHTML={{ __html: getPieceSymbol(piece.piece_type) }}
+                          />
+                        );
+                      })()
+                    ) : isValidMove ? (
+                      <div className="w-4 h-4 bg-white rounded-full shadow-lg border-2 border-gray-800" />
                     ) : (
-                      <span className="text-gray-500 text-xs select-none opacity-50">
+                      <span className="text-amber-700 text-xs select-none opacity-30 font-mono">
                         {x},{y}
                       </span>
                     )}
@@ -294,10 +300,10 @@ function App() {
           ))}
         </div>
 
-        <div className="mt-4 text-sm text-gray-400">
+        <div className="mt-2 text-xs text-gray-400" style={{ width: '768px' }}>
           {spawnMode ? (
-            <div className="text-purple-400">
-              Spawn Mode: Click a square to spawn "{selectedPieceToSpawn}".
+            <span>
+              🎯 Spawn "{selectedPieceToSpawn}"
               <button
                 onClick={() => {
                   setSpawnMode(false);
@@ -305,37 +311,31 @@ function App() {
                 }}
                 className="ml-2 text-red-400 hover:text-red-300"
               >
-                Cancel
+                [Cancel]
               </button>
-            </div>
+            </span>
           ) : selected ? (
-            <>
-              <div>Selected: ({selected[0]}, {selected[1]})</div>
-              <div className="text-green-400">
-                {validMoves.size > 0
-                  ? `${validMoves.size} valid move${validMoves.size !== 1 ? 's' : ''} highlighted. Click destination.`
-                  : "No valid moves available for this piece."
-                }
-              </div>
-            </>
+            <span>
+              Selected ({selected[0]}, {selected[1]}) • {validMoves.size} moves
+            </span>
           ) : (
-            "Click a piece to select, then click destination to move."
+            <span>Click piece to select</span>
           )}
         </div>
       </div>
 
         {/* RIGHT: Logs */}
-        <div className="w-80 bg-gray-900 p-4 rounded h-[600px] overflow-y-auto flex flex-col">
-          <h3 className="font-bold border-b border-gray-700 mb-2 pb-2 sticky top-0 bg-gray-900">
+        <div className="w-80 bg-gray-800 p-3 rounded-lg border border-gray-700 flex flex-col" style={{ height: '788px' }}>
+          <h3 className="text-sm font-bold border-b border-gray-700 mb-2 pb-2">
             Server Logs
           </h3>
-          <div className="flex-1 space-y-1">
+          <div className="flex-1 overflow-y-auto space-y-1">
             {messages.length === 0 ? (
-              <div className="text-sm text-gray-500 italic">Waiting for events...</div>
+              <div className="text-xs text-gray-500">No events</div>
             ) : (
               messages.map((msg, i) => (
-                <div key={i} className="text-sm font-mono text-green-300 break-words">
-                  <span className="text-gray-500">&gt;</span> {msg}
+                <div key={i} className="text-xs font-mono text-green-400 break-words">
+                  &gt; {msg}
                 </div>
               ))
             )}
@@ -345,30 +345,43 @@ function App() {
 
       {/* MIDDLE: Spawn Panel */}
       {gameState && Object.keys(gameState.rules).length > 0 && (
-        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700">
-          <h3 className="text-xl font-bold mb-4">Spawn Pieces</h3>
-          <div className="flex flex-wrap gap-3">
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 w-full max-w-4xl">
+          <h3 className="font-bold mb-3">Spawn Pieces</h3>
+          <div className="flex flex-wrap gap-2">
             {Object.keys(gameState.rules).map((pieceName) => (
               <button
                 key={pieceName}
                 onClick={() => {
                   setSpawnMode(true);
                   setSelectedPieceToSpawn(pieceName);
-                  setSelected(null); // Clear any movement selection
+                  setSelected(null);
                 }}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${
                   selectedPieceToSpawn === pieceName && spawnMode
                     ? "bg-purple-600 text-white"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    : "bg-gray-700 hover:bg-gray-600"
                 }`}
               >
-                {gameState.rules[pieceName].symbol} {pieceName}
+                {(() => {
+                  const imageUrl = getPieceImage(pieceName, name);
+                  return imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt={pieceName}
+                      className="w-6 h-6 inline-block"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div
+                      className="w-6 h-6 inline-block"
+                      dangerouslySetInnerHTML={{ __html: getPieceSymbol(pieceName) }}
+                    />
+                  );
+                })()}
+                <span>{pieceName}</span>
               </button>
             ))}
           </div>
-          <p className="text-sm text-gray-500 mt-3">
-            Click a piece type above, then click on the board to spawn it.
-          </p>
         </div>
       )}
 

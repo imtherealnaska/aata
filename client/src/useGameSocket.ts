@@ -68,7 +68,7 @@ export function useGameSocket() {
           const msgText = typeof data.payload === 'string' ? data.payload : JSON.stringify(data);
           setMessages((prev) => [...prev, msgText]);
         }
-      } catch (e) {
+      } catch {
         // Fallback: It's a raw string message from your current server code
         console.log("Received raw:", event.data);
         setMessages((prev) => [...prev, event.data]);
