@@ -32,4 +32,7 @@ pub struct PieceRule {
     pub name: String,
     pub symbol: String,
     pub capabilities: Vec<MovementCap>,
+
+    #[serde(default)]
+    pub is_royal: bool,
 }
