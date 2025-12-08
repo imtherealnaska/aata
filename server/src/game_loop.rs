@@ -161,6 +161,20 @@ impl GameLoop {
             .ok_or(GameError::InvalidPlayer)?;
 
         game.apply_move(pid, from, to)?;
+
+        if let Some(winner) = game.check_game_over() {
+            self.status = GameStatus::Finished {
+                winner: Some(winner.clone()),
+            };
+            println!("Game Over! Winner: {}", winner.0);
+
+            let msg = format!(
+                r#"{{"type":"game_over","payload":{{"winner":"{}"}}}}"#,
+                winner.0
+            );
+            let _ = self.event_tx.send(msg);
+        }
+
         // sendin the board
         self.broadcast_state();
         Ok(())

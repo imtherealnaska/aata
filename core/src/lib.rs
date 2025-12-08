@@ -1,7 +1,7 @@
 pub mod errors;
 pub mod rules;
 
-use std::{array, collections::HashMap};
+use std::collections::HashMap;
 
 use serde::Serialize;
 
@@ -53,6 +53,7 @@ impl GameState {
                     can_jump: false,
                     only_forward: true,
                 }],
+                is_royal: false,
             },
         );
 
@@ -73,6 +74,7 @@ impl GameState {
                         (-1, 2),
                     ],
                 }],
+                is_royal: false,
             },
         );
 
@@ -87,6 +89,22 @@ impl GameState {
                     can_jump: false,
                     only_forward: false,
                 }],
+                is_royal: false,
+            },
+        );
+
+        rules.insert(
+            "King".to_string(),
+            PieceRule {
+                name: "King".to_string(),
+                symbol: "K".to_string(),
+                capabilities: vec![MovementCap::Slide {
+                    pattern: SlidePattern::FrontBack,
+                    range: 1,
+                    can_jump: false,
+                    only_forward: false,
+                }],
+                is_royal: true, // King is now a royal piece
             },
         );
 
@@ -111,6 +129,14 @@ impl GameState {
                     owner: player1.clone(),
                 });
             }
+
+            if i == 4 {
+                board[0][i] = Some(Piece {
+                    piece_type: PieceType("King".into()),
+                    owner: player1.clone(),
+                });
+            }
+
             board[6][i] = Some(Piece {
                 piece_type: PieceType("Pawn".into()),
                 owner: player2.clone(),
@@ -126,6 +152,13 @@ impl GameState {
             if i == 1 || i == 6 {
                 board[7][i] = Some(Piece {
                     piece_type: PieceType("Knight".into()),
+                    owner: player2.clone(),
+                });
+            }
+
+            if i == 4 {
+                board[7][i] = Some(Piece {
+                    piece_type: PieceType("King".into()),
                     owner: player2.clone(),
                 });
             }
@@ -272,6 +305,46 @@ impl GameState {
             self.players.1.clone()
         };
         Ok(())
+    }
+
+    /// Check if a player has any royal pieces remaining on the board
+    pub fn has_royal_pieces(&self, player: &PlayerId) -> bool {
+        for row in &self.board {
+            for square in row {
+                if let Some(piece) = square {
+                    if piece.owner == *player {
+                        if let Some(rule) = self.rules.get(&piece.piece_type.0) {
+                            if rule.is_royal {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Check if the game is over (a player has lost all their royal pieces)
+    pub fn check_game_over(&self) -> Option<PlayerId> {
+        let has_royal_rules = self.rules.values().any(|rule| rule.is_royal);
+
+        if !has_royal_rules {
+            return None;
+        }
+
+        let p1_has_royal = self.has_royal_pieces(&self.players.0);
+        let p2_has_royal = self.has_royal_pieces(&self.players.1);
+
+        if !p1_has_royal && p2_has_royal {
+            // Player 1 lost all royal pieces, Player 2 wins
+            return Some(self.players.1.clone());
+        }
+        if !p2_has_royal && p1_has_royal {
+            // Player 2 lost all royal pieces, Player 1 wins
+            return Some(self.players.0.clone());
+        }
+        None
     }
 
     fn check_path_clear(&self, from: (u8, u8), to: (u8, u8)) -> Result<(), GameError> {
