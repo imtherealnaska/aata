@@ -34,6 +34,7 @@ export interface PieceRule {
   name: string;
   symbol: string;
   capabilities: MovementCap[];
+  is_royal?: boolean; // Optional: if true, losing all these pieces ends the game
 }
 
 /**

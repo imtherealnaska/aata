@@ -45,6 +45,7 @@ export function RuleBuilder({ onPropose, initialRule }: RuleBuilderProps) {
   const [capabilities, setCapabilities] = useState<MovementCap[]>(
     initialRule?.capabilities || []
   );
+  const [isRoyal, setIsRoyal] = useState(initialRule?.is_royal || false);
 
   // Editor state
   const [isAdding, setIsAdding] = useState(false);
@@ -94,6 +95,7 @@ export function RuleBuilder({ onPropose, initialRule }: RuleBuilderProps) {
       name,
       symbol,
       capabilities: capabilities,
+      is_royal: isRoyal,
     };
     onPropose(rule);
   };
@@ -200,6 +202,29 @@ export function RuleBuilder({ onPropose, initialRule }: RuleBuilderProps) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Royal Piece Checkbox */}
+            <div className="mt-5 pt-5 border-t border-slate-700/50">
+              <label className="flex items-start gap-4 cursor-pointer group bg-slate-900/40 p-4 rounded-xl border-2 border-slate-700/50 hover:border-yellow-500/50 transition-all">
+                <input
+                  type="checkbox"
+                  checked={isRoyal}
+                  onChange={(e) => setIsRoyal(e.target.checked)}
+                  className="mt-1 w-6 h-6 text-yellow-600 bg-slate-800 border-2 border-slate-600 rounded-md focus:ring-2 focus:ring-yellow-500 focus:ring-offset-0 cursor-pointer checked:bg-yellow-600 checked:border-yellow-600"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">👑</span>
+                    <span className="text-base font-bold text-white group-hover:text-yellow-400 transition-colors">
+                      Royal Piece
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    If all royal pieces are captured, that player <strong className="text-red-400">loses the game</strong>
+                  </p>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -336,6 +361,12 @@ export function RuleBuilder({ onPropose, initialRule }: RuleBuilderProps) {
                 <span className="text-slate-500 font-medium">Capabilities:</span>
                 <span className="text-white font-semibold">
                   {capabilities.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between bg-slate-900/50 px-4 py-3 rounded-lg">
+                <span className="text-slate-500 font-medium">Royal Piece:</span>
+                <span className={`font-semibold ${isRoyal ? 'text-yellow-400' : 'text-slate-600'}`}>
+                  {isRoyal ? "👑 Yes" : "No"}
                 </span>
               </div>
             </div>
