@@ -1,4 +1,4 @@
-# AATA
+# AATA or [ಆಟ](https://alar.ink/dictionary/kannada/english/%E0%B2%86%E0%B2%9F)
 
 > What if you could play chess, but before the game starts, you and your opponent design the pieces together?
 
@@ -197,3 +197,7 @@ I wanted to explore two ideas:
 1. **Consensus as gameplay** – Most competitive games are zero-sum. What happens when you force cooperation before competition? The disagreement budget creates an interesting dynamic where players have to pick their battles.
 
 2. **Data-driven rules** – Board games usually hard-code piece logic. I wanted to see if you could build a system where movement rules are just JSON configurations. Turns out, you can. The entire rule engine is generic—it doesn't "know" what a Knight or Rook is, it just interprets capability data.
+
+## Demo:
+
+Screen recording of this project working: https://youtu.be/pf7UOvdQNBE
